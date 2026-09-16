@@ -1,0 +1,65 @@
+{
+  "estado": "completa",
+  "arquitectura": "beto_ajustado",
+  "semilla": 123,
+  "fuente": "sintetico",
+  "humo": true,
+  "inicio_utc": "2026-09-16T15:34:58+00:00",
+  "fin_utc": "2026-09-16T15:36:07+00:00",
+  "duracion_s": 69.7,
+  "config_sha256": "5ac8d9689739965e59accff638b7c29cbe112bac3ae4200b7b03999af7d904e3",
+  "hiperparametros": {
+    "modelo_base": "dccuchile/bert-base-spanish-wwm-cased",
+    "revision": "c4d86612f51b4f46759c8390d1798c2febe71b93",
+    "max_length": 64,
+    "batch_size": 16,
+    "batch_por_dispositivo": 16,
+    "learning_rate": 2e-05,
+    "weight_decay": 0.01,
+    "dropout": 0.1,
+    "max_epochs": 1,
+    "paciencia": 2
+  },
+  "particion": {
+    "sha256_asignaciones": "bdf329e6205d6da892a3f5c5316136fa0a864b0b24fc78ca80959fffe9357de0",
+    "sha256_entrada": "74250e1ca47f034b4430f0a78893f90dee6331f09eb056284a4cdda6ba10b6a8",
+    "fragmentos": {
+      "train": 346,
+      "val": 53,
+      "test": 100
+    }
+  },
+  "mejor_eval_loss": 0.5866203308105469,
+  "barrido_sonda": null,
+  "entrenamiento": {
+    "mejor_eval_loss": 0.5866203308105469,
+    "epocas_completadas": 1.0,
+    "pasos": 22,
+    "historial": [
+      {
+        "loss": 0.6272872144525702,
+        "grad_norm": 1.9378526210784912,
+        "learning_rate": 9.090909090909091e-07,
+        "epoch": 1.0,
+        "step": 22
+      },
+      {
+        "eval_loss": 0.5866203308105469,
+        "eval_runtime": 2.2904,
+        "eval_samples_per_second": 23.14,
+        "eval_steps_per_second": 0.873,
+        "epoch": 1.0,
+        "step": 22
+      },
+      {
+        "train_runtime": 65.8415,
+        "train_samples_per_second": 5.255,
+        "train_steps_per_second": 0.334,
+        "total_flos": 5148137798040.0,
+        "train_loss": 0.6272872144525702,
+        "epoch": 1.0,
+        "step": 22
+      }
+    ]
+  }
+}

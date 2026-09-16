@@ -1,0 +1,16 @@
+# El entorno virtual local pesa cientos de MB y trae ruedas de Windows: nunca
+# debe entrar en una imagen Linux.
+.venv/
+venv/
+
+# Secretos y datos: la imagen no debe contener el .env de desarrollo ni la base
+# SQLite con datos reales. En compose ambos llegan por entorno y por volumen.
+.env
+*.db
+*.sqlite3
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/

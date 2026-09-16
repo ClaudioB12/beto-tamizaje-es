@@ -1,0 +1,44 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Modelos y archivos pesados
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
+
+# Datos
+*.csv
+*.xlsx
+*.xls
+
+# Temporales
+tmp/
+temp/

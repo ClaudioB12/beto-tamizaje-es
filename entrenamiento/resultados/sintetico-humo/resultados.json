@@ -1,0 +1,208 @@
+{
+  "definicion_f1_macro": "media del F1 binario de ansiedad y de depresión, cada uno sobre sus filas con etiqueta conocida (propuesta D3, pendiente de aprobación)",
+  "bootstrap": {
+    "n": 10000,
+    "semilla": 2026,
+    "metodo": "percentiles"
+  },
+  "por_arquitectura": [
+    {
+      "arquitectura": "beto_ajustado",
+      "dominio": "sintetico",
+      "semillas": [
+        13,
+        42,
+        77,
+        123,
+        2026
+      ],
+      "f1_macro_por_semilla": {
+        "13": 0.5857142857142856,
+        "42": 0.6114942528735632,
+        "77": 0.5388577827547593,
+        "123": 0.6239316239316239,
+        "2026": 0.5982731554160126
+      },
+      "f1_macro_media": 0.5916542201380489,
+      "f1_macro_de": 0.03279487238936856,
+      "f1_macro_min": 0.5388577827547593,
+      "f1_macro_max": 0.6239316239316239,
+      "ic_bootstrap": {
+        "estimacion": 0.5916542201380489,
+        "ic_inferior": 0.5278895060675565,
+        "ic_superior": 0.6439225202728095,
+        "nivel": 0.95,
+        "n_bootstrap": 10000,
+        "fragmentos": 100,
+        "semillas": 5
+      },
+      "por_etiqueta_media": {
+        "ansiedad": {
+          "f1": 0.6643195332020844,
+          "sensibilidad": 0.7513513513513514,
+          "precision": 0.642118194464501
+        },
+        "depresion": {
+          "f1": 0.5189889070740135,
+          "sensibilidad": 0.4270270270270271,
+          "precision": 0.7396840566890373
+        }
+      },
+      "f1_control_media": 0.7168102240896358
+    },
+    {
+      "arquitectura": "beto_sonda",
+      "dominio": "sintetico",
+      "semillas": [
+        13,
+        42,
+        77,
+        123,
+        2026
+      ],
+      "f1_macro_por_semilla": {
+        "13": 0.6167396593673966,
+        "42": 0.4764216366158114,
+        "77": 0.6384615384615384,
+        "123": 0.6191721803354362,
+        "2026": 0.4279677295428352
+      },
+      "f1_macro_media": 0.5557525488646036,
+      "f1_macro_de": 0.09644248020302638,
+      "f1_macro_min": 0.4279677295428352,
+      "f1_macro_max": 0.6384615384615384,
+      "ic_bootstrap": {
+        "estimacion": 0.5557525488646036,
+        "ic_inferior": 0.5031953127024151,
+        "ic_superior": 0.6002970029006682,
+        "nivel": 0.95,
+        "n_bootstrap": 10000,
+        "fragmentos": 100,
+        "semillas": 5
+      },
+      "por_etiqueta_media": {
+        "ansiedad": {
+          "f1": 0.581118948659633,
+          "sensibilidad": 0.8918918918918919,
+          "precision": 0.43838961038961033
+        },
+        "depresion": {
+          "f1": 0.5303861490695742,
+          "sensibilidad": 0.4864864864864865,
+          "precision": 0.6018392134181608
+        }
+      },
+      "f1_control_media": 0.42736077481840196
+    },
+    {
+      "arquitectura": "tfidf_lr",
+      "dominio": "sintetico",
+      "semillas": [
+        13,
+        42,
+        77,
+        123,
+        2026
+      ],
+      "f1_macro_por_semilla": {
+        "13": 0.49082934609250395,
+        "42": 0.49082934609250395,
+        "77": 0.49082934609250395,
+        "123": 0.49082934609250395,
+        "2026": 0.49082934609250395
+      },
+      "f1_macro_media": 0.4908293460925039,
+      "f1_macro_de": 6.206335383118183e-17,
+      "f1_macro_min": 0.49082934609250395,
+      "f1_macro_max": 0.49082934609250395,
+      "ic_bootstrap": {
+        "estimacion": 0.4908293460925039,
+        "ic_inferior": 0.41138021204773445,
+        "ic_superior": 0.5596931213843922,
+        "nivel": 0.95,
+        "n_bootstrap": 10000,
+        "fragmentos": 100,
+        "semillas": 5
+      },
+      "por_etiqueta_media": {
+        "ansiedad": {
+          "f1": 0.5606060606060606,
+          "sensibilidad": 1.0,
+          "precision": 0.3894736842105263
+        },
+        "depresion": {
+          "f1": 0.42105263157894735,
+          "sensibilidad": 0.43243243243243246,
+          "precision": 0.41025641025641024
+        }
+      },
+      "f1_control_media": 0.0
+    }
+  ],
+  "comparaciones_h1": [
+    {
+      "dominio": "sintetico",
+      "a": "beto_ajustado",
+      "b": "beto_sonda",
+      "diferencia_f1_macro": {
+        "estimacion": 0.035901671273445346,
+        "ic_inferior": -0.01603029370915932,
+        "ic_superior": 0.0848326387836506,
+        "nivel": 0.95,
+        "excluye_cero": false,
+        "proporcion_bootstrap_a_mayor": 0.9119,
+        "n_bootstrap": 10000
+      },
+      "prueba_semillas": {
+        "mann_whitney_unilateral": {
+          "U": 12.0,
+          "p": 0.5793650793650793,
+          "p_minimo_alcanzable": 0.003968253968253968,
+          "r_rango_biserial": -0.040000000000000036
+        },
+        "wilcoxon_pareada_bilateral_ppi": {
+          "p": 0.625,
+          "p_minimo_alcanzable": 0.0625,
+          "nota": "con 5 semillas su p mínimo es 0.0625: no puede ser < 0,05."
+        }
+      }
+    },
+    {
+      "dominio": "sintetico",
+      "a": "beto_ajustado",
+      "b": "tfidf_lr",
+      "diferencia_f1_macro": {
+        "estimacion": 0.10082487404554502,
+        "ic_inferior": 0.020137216525124936,
+        "ic_superior": 0.1808907126271603,
+        "nivel": 0.95,
+        "excluye_cero": true,
+        "proporcion_bootstrap_a_mayor": 0.9945,
+        "n_bootstrap": 10000
+      },
+      "prueba_semillas": {
+        "mann_whitney_unilateral": {
+          "U": 25.0,
+          "p": 0.003968253968253968,
+          "p_minimo_alcanzable": 0.003968253968253968,
+          "r_rango_biserial": 1.0
+        },
+        "wilcoxon_pareada_bilateral_ppi": {
+          "p": 0.0625,
+          "p_minimo_alcanzable": 0.0625,
+          "nota": "con 5 semillas su p mínimo es 0.0625: no puede ser < 0,05."
+        }
+      }
+    }
+  ],
+  "brechas_dominio": [],
+  "concordancia_severidad": [],
+  "experimento": "sintetico-humo",
+  "fuente": "sintetico",
+  "humo": true,
+  "generado_en_utc": "2026-09-16T15:49:19+00:00",
+  "advertencias": [
+    "PRUEBA DE HUMO (1 época, 64 tokens): estas cifras solo verifican el pipeline. NO REPORTAR.",
+    "Datos sintéticos: no miden el desempeño del tamizaje. NO REPORTAR."
+  ]
+}

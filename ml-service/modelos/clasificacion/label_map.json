@@ -1,0 +1,20 @@
+{
+  "label2id": {
+    "ansiedad_leve": 0,
+    "ansiedad_moderado": 1,
+    "ansiedad_severo": 2,
+    "control": 3,
+    "depresion_leve": 4,
+    "depresion_moderado": 5,
+    "depresion_severo": 6
+  },
+  "id2label": {
+    "0": "ansiedad_leve",
+    "1": "ansiedad_moderado",
+    "2": "ansiedad_severo",
+    "3": "control",
+    "4": "depresion_leve",
+    "5": "depresion_moderado",
+    "6": "depresion_severo"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "fuente": "sintetico",
+  "generado_en_utc": "2026-09-16T13:59:50+00:00",
+  "entrada": {
+    "archivo": "dataset_clasificacion.csv",
+    "sha256": "74250e1ca47f034b4430f0a78893f90dee6331f09eb056284a4cdda6ba10b6a8"
+  },
+  "configuracion": {
+    "proporciones": [
+      0.7,
+      0.1,
+      0.2
+    ],
+    "semilla": 42
+  },
+  "sha256_asignaciones": "bdf329e6205d6da892a3f5c5316136fa0a864b0b24fc78ca80959fffe9357de0",
+  "deduplicacion": {
+    "filas_entrada": 535,
+    "duplicados_eliminados": 36,
+    "textos_en_conflicto": 0,
+    "filas_en_conflicto_eliminadas": 0,
+    "filas_salida": 499
+  },
+  "particiones": {
+    "train": {
+      "fragmentos": 346,
+      "sujetos": 66,
+      "fraccion_fragmentos": 0.6934,
+      "estratos": {
+        "0|0": 84,
+        "0|1": 131,
+        "1|0": 131
+      }
+    },
+    "val": {
+      "fragmentos": 53,
+      "sujetos": 10,
+      "fraccion_fragmentos": 0.1062,
+      "estratos": {
+        "0|0": 17,
+        "0|1": 18,
+        "1|0": 18
+      }
+    },
+    "test": {
+      "fragmentos": 100,
+      "sujetos": 19,
+      "fraccion_fragmentos": 0.2004,
+      "estratos": {
+        "0|0": 26,
+        "0|1": 37,
+        "1|0": 37
+      }
+    }
+  },
+  "versiones": {
+    "python": "3.13.1",
+    "pandas": "3.0.5",
+    "scikit-learn": "1.9.0"
+  }
+}

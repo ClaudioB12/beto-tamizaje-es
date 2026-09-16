@@ -1,0 +1,27 @@
+from collections.abc import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.config import get_settings
+
+settings = get_settings()
+
+# check_same_thread solo aplica a SQLite (FastAPI usa varios hilos); en
+# PostgreSQL el dict queda vacío y el engine se crea igual, sin cambios de código.
+_connect_args = (
+    {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+)
+
+engine = create_engine(settings.database_url, connect_args=_connect_args)
+
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+
+def get_db() -> Generator[Session, None, None]:
+    """Dependencia de FastAPI: una sesión de base de datos por petición."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

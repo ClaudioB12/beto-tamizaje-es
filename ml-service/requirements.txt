@@ -1,0 +1,19 @@
+# NOTA: sin tildes ni enyes a proposito. pip lee este fichero con la
+# codificacion local del sistema (cp1252 en Windows), no UTF-8, y cualquier
+# caracter no ASCII aqui rompe "pip install -r requirements.txt".
+
+# Indice de ruedas CPU de PyTorch: el contenedor no reserva GPU en
+# docker-compose y las ruedas por defecto de PyPI arrastran CUDA (~2.5 GB) que
+# nunca se usaria. main.py detecta el dispositivo en runtime, asi que sobre
+# estas ruedas cae automaticamente en CPU.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+
+# Fijadas a las versiones con las que se entrenaron y serializaron los pesos de
+# modelos/ (ver entrenamiento/train.py). No desalinear sin re-exportar:
+# transformers 5.x cambio el formato respecto de la serie 4.x.
+torch==2.13.0+cpu
+transformers==5.16.1

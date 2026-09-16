@@ -1,0 +1,14 @@
+{
+  "ansiedad": {
+    "umbral": 0.32,
+    "f1_validacion": 0.666667,
+    "filas_validacion": 53,
+    "en_borde_de_rejilla": false
+  },
+  "depresion": {
+    "umbral": 0.42,
+    "f1_validacion": 0.829268,
+    "filas_validacion": 53,
+    "en_borde_de_rejilla": false
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "version": "0.1.0",
+  "estado": "borrador_pendiente_validacion_clinica",
+  "plantillas": [
+    {
+      "id": "ansiedad_leve_01",
+      "emocion": "ansiedad",
+      "severidad": "leve",
+      "texto": "Gracias por contarme cómo te sientes. Es comprensible sentir algo de tensión ante lo que describes. {fragmento} ¿Quieres contarme un poco más sobre las situaciones en las que aparece esta sensación?"
+    },
+    {
+      "id": "ansiedad_leve_02",
+      "emocion": "ansiedad",
+      "severidad": "leve",
+      "texto": "Te agradezco que compartas esto conmigo. Notar lo que sientes ya es un primer paso importante. {fragmento} ¿En qué momentos del día notas más esta inquietud?"
+    },
+    {
+      "id": "ansiedad_moderado_01",
+      "emocion": "ansiedad",
+      "severidad": "moderado",
+      "texto": "Lamento que estés pasando por un momento de tanta tensión; lo que sientes es válido y tiene sentido dadas las circunstancias. {fragmento} ¿Cómo ha estado afectando esto tu descanso o tus actividades diarias?"
+    },
+    {
+      "id": "ansiedad_moderado_02",
+      "emocion": "ansiedad",
+      "severidad": "moderado",
+      "texto": "Entiendo que esta preocupación te está acompañando con frecuencia y eso agota. {fragmento} Recuerda que en tu próxima sesión podrás trabajar esto con tu psicólogo o psicóloga. ¿Hay algo específico que la haya intensificado últimamente?"
+    },
+    {
+      "id": "ansiedad_severo_01",
+      "emocion": "ansiedad",
+      "severidad": "severo",
+      "texto": "Siento mucho que estés atravesando un momento tan difícil; gracias por la confianza de contarlo aquí. {fragmento} Es importante que compartas esto con tu psicólogo o psicóloga en tu próxima sesión, y si sientes que la situación te sobrepasa, comunícate con tu centro de salud."
+    },
+    {
+      "id": "ansiedad_severo_02",
+      "emocion": "ansiedad",
+      "severidad": "severo",
+      "texto": "Lo que describes suena muy intenso y mereces apoyo cercano. {fragmento} Tu psicólogo o psicóloga recibirá un resumen de cómo te has sentido para acompañarte mejor en la próxima sesión. No dudes en acudir a tu centro de salud si lo necesitas antes."
+    },
+    {
+      "id": "depresion_leve_01",
+      "emocion": "depresion",
+      "severidad": "leve",
+      "texto": "Gracias por compartir cómo te has sentido. Los días con el ánimo bajo también merecen atención y cuidado. {fragmento} ¿Hay alguna actividad que antes disfrutabas y que te gustaría retomar poco a poco?"
+    },
+    {
+      "id": "depresion_leve_02",
+      "emocion": "depresion",
+      "severidad": "leve",
+      "texto": "Te escucho, y valoro que pongas en palabras lo que sientes. {fragmento} ¿Cómo ha estado tu ánimo en los últimos días en comparación con semanas anteriores?"
+    },
+    {
+      "id": "depresion_moderado_01",
+      "emocion": "depresion",
+      "severidad": "moderado",
+      "texto": "Lamento que estés cargando con esta tristeza; no estás solo ni sola en esto. {fragmento} Lo que me cuentas quedará disponible para tu psicólogo o psicóloga, que podrá acompañarte de cerca en tu próxima sesión. ¿Cómo han estado tu sueño y tu apetito?"
+    },
+    {
+      "id": "depresion_moderado_02",
+      "emocion": "depresion",
+      "severidad": "moderado",
+      "texto": "Gracias por confiar en este espacio. Sentirse así durante varios días es agotador y mereces apoyo. {fragmento} ¿Hay personas cercanas con las que hayas podido hablar de esto?"
+    },
+    {
+      "id": "depresion_severo_01",
+      "emocion": "depresion",
+      "severidad": "severo",
+      "texto": "Siento mucho que estés pasando por un momento tan pesado; gracias por contarlo, hace falta valentía para hacerlo. {fragmento} Es muy importante que tu psicólogo o psicóloga conozca esto cuanto antes: recibirá un resumen para tu próxima sesión, y si sientes que necesitas apoyo inmediato, acude a tu centro de salud o llama a la Línea 113, opción 5."
+    },
+    {
+      "id": "depresion_severo_02",
+      "emocion": "depresion",
+      "severidad": "severo",
+      "texto": "Lo que describes refleja un malestar profundo y mereces acompañamiento cercano, no cargarlo en soledad. {fragmento} Por favor, no dejes de asistir a tu próxima sesión; si antes de esa fecha te sientes sobrepasado o sobrepasada, la Línea 113 (opción 5) está disponible las 24 horas."
+    },
+    {
+      "id": "control_01",
+      "emocion": "control",
+      "severidad": null,
+      "texto": "Gracias por compartirlo. Me alegra acompañarte en este espacio. {fragmento} ¿Hay algo más sobre cómo te has sentido últimamente que quieras contarme?"
+    },
+    {
+      "id": "control_02",
+      "emocion": "control",
+      "severidad": null,
+      "texto": "Te leo, gracias por escribir. Este espacio está siempre disponible para ti. {fragmento} ¿Cómo describirías tu estado de ánimo en general esta semana?"
+    }
+  ],
+  "respuesta_crisis": {
+    "id": "crisis_01",
+    "emocion": "crisis",
+    "severidad": null,
+    "texto": "Gracias por confiar en este espacio y contar lo que estás sintiendo: es muy importante y mereces apoyo inmediato de una persona. Por favor, comunícate ahora mismo con la Línea 113 del Ministerio de Salud, opción 5 (salud mental), gratuita y disponible las 24 horas, o acude al servicio de emergencia más cercano. Tu psicólogo o psicóloga del centro será informado para acompañarte lo antes posible. No estás solo ni sola."
+  },
+  "respuesta_fallback": {
+    "id": "fallback_01",
+    "emocion": "fallback",
+    "severidad": null,
+    "texto": "Gracias por escribir. Quiero asegurarme de acompañarte bien: ¿podrías contarme un poco más sobre cómo te has sentido estos días?"
+  }
+}

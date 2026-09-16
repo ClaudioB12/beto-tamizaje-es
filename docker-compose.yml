@@ -1,0 +1,63 @@
+# Orquestación del prototipo: backend + ml-service (+ postgres bajo el perfil
+# "prod", + frontend bajo el perfil "frontend"). En el prototipo el backend usa
+# SQLite sobre un volumen; para producción: docker compose --profile prod up y
+# cambiar BETO_DATABASE_URL a la URL de PostgreSQL.
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      BETO_DATABASE_URL: sqlite:////data/prototipo.db
+      BETO_ML_SERVICE_URL: http://ml-service:8001
+      # Valor de desarrollo. El backend rechaza arrancar con este secreto si
+      # BETO_ENTORNO=produccion (ver app/config.py).
+      BETO_JWT_SECRET: ${BETO_JWT_SECRET:-solo-para-prototipo-local}
+    volumes:
+      - beto-datos:/data
+    depends_on:
+      # El gate de crisis es bloqueante: si el servicio ML no responde, toda
+      # petición de chat falla con 503. Se espera a que los pesos estén
+      # cargados, no solo a que el contenedor exista.
+      ml-service:
+        condition: service_healthy
+
+  # El servicio ML carga los pesos BETO de ml-service/modelos/ al arrancar
+  # (~880 MB, varias decenas de segundos en CPU).
+  ml-service:
+    build: ./ml-service
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys,json; d=json.load(urllib.request.urlopen('http://localhost:8001/health')); sys.exit(0 if d['modelo_crisis']=='cargado' and d['modelo_clasificacion']=='cargado' else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+
+  # Todavía no implementado: el directorio ./frontend no existe. Queda bajo un
+  # perfil para que "docker compose up" levante el resto del sistema.
+  # Cuando exista: docker compose --profile frontend up
+  frontend:
+    build: ./frontend
+    profiles: ["frontend"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["prod"]
+    environment:
+      POSTGRES_DB: beto
+      POSTGRES_USER: beto
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cambiar-en-produccion}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-datos:/var/lib/postgresql/data
+
+volumes:
+  beto-datos:
+  pg-datos:

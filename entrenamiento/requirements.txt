@@ -1,0 +1,15 @@
+# NOTA: sin tildes a proposito. pip lee este fichero con la codificacion local
+# (cp1252 en Windows) y un caracter no ASCII rompe "pip install -r".
+
+# Fijadas a las versiones con las que se valido el pipeline. Registrar cualquier
+# cambio: el PPI (2.2) exige reproducibilidad de las corridas.
+pandas==3.0.5
+pyyaml==6.0.3
+scikit-learn==1.9.0
+pytest==8.3.5
+
+# Entrenamiento (fase 3 en adelante). Sin sufijo +cpu: en Colab o con GPU local
+# pip resuelve la rueda con CUDA.
+torch==2.13.0
+transformers==5.16.1
+accelerate==1.14.0

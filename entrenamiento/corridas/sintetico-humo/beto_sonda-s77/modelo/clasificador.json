@@ -1,0 +1,16 @@
+{
+  "arquitectura": "beto_sonda",
+  "semilla": 77,
+  "hiperparametros": {
+    "modelo_base": "dccuchile/bert-base-spanish-wwm-cased",
+    "revision": "c4d86612f51b4f46759c8390d1798c2febe71b93",
+    "max_length": 64,
+    "batch_size": 16,
+    "batch_por_dispositivo": 16,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "dropout": 0.1,
+    "max_epochs": 1,
+    "paciencia": 2
+  }
+}

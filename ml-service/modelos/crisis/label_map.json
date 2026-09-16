@@ -1,0 +1,10 @@
+{
+  "label2id": {
+    "no_crisis": 0,
+    "crisis": 1
+  },
+  "id2label": {
+    "0": "no_crisis",
+    "1": "crisis"
+  }
+}

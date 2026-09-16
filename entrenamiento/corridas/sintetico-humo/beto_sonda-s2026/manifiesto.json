@@ -1,0 +1,75 @@
+{
+  "estado": "completa",
+  "arquitectura": "beto_sonda",
+  "semilla": 2026,
+  "fuente": "sintetico",
+  "humo": true,
+  "inicio_utc": "2026-09-16T15:39:18+00:00",
+  "fin_utc": "2026-09-16T15:39:46+00:00",
+  "duracion_s": 28.3,
+  "config_sha256": "5ac8d9689739965e59accff638b7c29cbe112bac3ae4200b7b03999af7d904e3",
+  "hiperparametros": {
+    "modelo_base": "dccuchile/bert-base-spanish-wwm-cased",
+    "revision": "c4d86612f51b4f46759c8390d1798c2febe71b93",
+    "max_length": 64,
+    "batch_size": 16,
+    "batch_por_dispositivo": 16,
+    "learning_rate": 0.001,
+    "weight_decay": 0.01,
+    "dropout": 0.1,
+    "max_epochs": 1,
+    "paciencia": 2
+  },
+  "particion": {
+    "sha256_asignaciones": "bdf329e6205d6da892a3f5c5316136fa0a864b0b24fc78ca80959fffe9357de0",
+    "sha256_entrada": "74250e1ca47f034b4430f0a78893f90dee6331f09eb056284a4cdda6ba10b6a8",
+    "fragmentos": {
+      "train": 346,
+      "val": 53,
+      "test": 100
+    }
+  },
+  "mejor_eval_loss": 0.6404116153717041,
+  "barrido_sonda": {
+    "criterio": "menor eval_loss en validación",
+    "learning_rate_elegida": 0.001,
+    "resultados": [
+      {
+        "learning_rate": 0.001,
+        "mejor_eval_loss": 0.6404116153717041,
+        "epocas_completadas": 1.0
+      }
+    ]
+  },
+  "entrenamiento": {
+    "mejor_eval_loss": 0.6404116153717041,
+    "epocas_completadas": 1.0,
+    "pasos": 22,
+    "historial": [
+      {
+        "loss": 0.6573618975552645,
+        "grad_norm": 1.5329811573028564,
+        "learning_rate": 4.545454545454546e-05,
+        "epoch": 1.0,
+        "step": 22
+      },
+      {
+        "eval_loss": 0.6404116153717041,
+        "eval_runtime": 1.9068,
+        "eval_samples_per_second": 27.796,
+        "eval_steps_per_second": 1.049,
+        "epoch": 1.0,
+        "step": 22
+      },
+      {
+        "train_runtime": 22.972,
+        "train_samples_per_second": 15.062,
+        "train_steps_per_second": 0.958,
+        "total_flos": 5119783327296.0,
+        "train_loss": 0.6573618975552645,
+        "epoch": 1.0,
+        "step": 22
+      }
+    ]
+  }
+}

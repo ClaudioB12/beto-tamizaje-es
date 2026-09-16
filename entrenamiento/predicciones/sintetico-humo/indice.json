@@ -1,0 +1,181 @@
+{
+  "experimento": "sintetico-humo",
+  "fuente": "sintetico",
+  "humo": true,
+  "generado_en_utc": "2026-09-16T15:46:41+00:00",
+  "sha256_asignaciones": "bdf329e6205d6da892a3f5c5316136fa0a864b0b24fc78ca80959fffe9357de0",
+  "bandas": null,
+  "archivos": [
+    {
+      "archivo": "beto_ajustado-s123-sintetico.csv",
+      "arquitectura": "beto_ajustado",
+      "semilla": 123,
+      "dominio": "sintetico",
+      "sha256": "1a9f4d07cb44b401d060c64ae1ab50b10bcf3596b5a7978f403e1567c0909141",
+      "umbrales": {
+        "ansiedad": 0.4,
+        "depresion": 0.41
+      }
+    },
+    {
+      "archivo": "beto_ajustado-s13-sintetico.csv",
+      "arquitectura": "beto_ajustado",
+      "semilla": 13,
+      "dominio": "sintetico",
+      "sha256": "272dfd97b83146186f8ad71b296f7eb6eafc9cf33ea9706f9521ee61b38cbfcc",
+      "umbrales": {
+        "ansiedad": 0.43,
+        "depresion": 0.4
+      }
+    },
+    {
+      "archivo": "beto_ajustado-s2026-sintetico.csv",
+      "arquitectura": "beto_ajustado",
+      "semilla": 2026,
+      "dominio": "sintetico",
+      "sha256": "ba571901418fbd18c5cb28c6717441fea5cf7fa21ef8fdfba85eeed91e4df6db",
+      "umbrales": {
+        "ansiedad": 0.29,
+        "depresion": 0.4
+      }
+    },
+    {
+      "archivo": "beto_ajustado-s42-sintetico.csv",
+      "arquitectura": "beto_ajustado",
+      "semilla": 42,
+      "dominio": "sintetico",
+      "sha256": "ae5b9701d74f8a590d26e3aff4a13e41b5c7566384bdd01d180f05c44353a6e9",
+      "umbrales": {
+        "ansiedad": 0.32,
+        "depresion": 0.42
+      }
+    },
+    {
+      "archivo": "beto_ajustado-s77-sintetico.csv",
+      "arquitectura": "beto_ajustado",
+      "semilla": 77,
+      "dominio": "sintetico",
+      "sha256": "a3e8d080e7dbeb51946eca1321aa807ee8c70afe962531c755add7920a0d0ce5",
+      "umbrales": {
+        "ansiedad": 0.38,
+        "depresion": 0.44
+      }
+    },
+    {
+      "archivo": "beto_sonda-s123-sintetico.csv",
+      "arquitectura": "beto_sonda",
+      "semilla": 123,
+      "dominio": "sintetico",
+      "sha256": "e6d0161fb7635ec6a1d273333eccc60d1962d8f4236600158b9a2519baf08b7f",
+      "umbrales": {
+        "ansiedad": 0.32,
+        "depresion": 0.34
+      }
+    },
+    {
+      "archivo": "beto_sonda-s13-sintetico.csv",
+      "arquitectura": "beto_sonda",
+      "semilla": 13,
+      "dominio": "sintetico",
+      "sha256": "ed0c26ecc96af94c8ab3c20400b82dbc2b64899d593bac027a619b61fcbe34e3",
+      "umbrales": {
+        "ansiedad": 0.05,
+        "depresion": 0.36
+      },
+      "umbrales_en_borde": [
+        "ansiedad"
+      ]
+    },
+    {
+      "archivo": "beto_sonda-s2026-sintetico.csv",
+      "arquitectura": "beto_sonda",
+      "semilla": 2026,
+      "dominio": "sintetico",
+      "sha256": "6878c28673fd21a5770840ce2e1a3c1a3dfe0669d93828bc568139293fecb4fd",
+      "umbrales": {
+        "ansiedad": 0.05,
+        "depresion": 0.41
+      },
+      "umbrales_en_borde": [
+        "ansiedad"
+      ]
+    },
+    {
+      "archivo": "beto_sonda-s42-sintetico.csv",
+      "arquitectura": "beto_sonda",
+      "semilla": 42,
+      "dominio": "sintetico",
+      "sha256": "8efa24ad4c02b359397c1537784279aab0a7ed6149a9ec8db1256707d71fb157",
+      "umbrales": {
+        "ansiedad": 0.29,
+        "depresion": 0.35
+      }
+    },
+    {
+      "archivo": "beto_sonda-s77-sintetico.csv",
+      "arquitectura": "beto_sonda",
+      "semilla": 77,
+      "dominio": "sintetico",
+      "sha256": "d485e24a7eae2ab807e51655f6897dd90d5b8ec33e5d57006cd3811c17b16570",
+      "umbrales": {
+        "ansiedad": 0.32,
+        "depresion": 0.35
+      }
+    },
+    {
+      "archivo": "tfidf_lr-s123-sintetico.csv",
+      "arquitectura": "tfidf_lr",
+      "semilla": 123,
+      "dominio": "sintetico",
+      "sha256": "2f292926982f89b4cf3bc1c3097eb196dedfaad61203b5143338f401af3a7bd7",
+      "umbrales": {
+        "ansiedad": 0.22,
+        "depresion": 0.41
+      }
+    },
+    {
+      "archivo": "tfidf_lr-s13-sintetico.csv",
+      "arquitectura": "tfidf_lr",
+      "semilla": 13,
+      "dominio": "sintetico",
+      "sha256": "2f292926982f89b4cf3bc1c3097eb196dedfaad61203b5143338f401af3a7bd7",
+      "umbrales": {
+        "ansiedad": 0.22,
+        "depresion": 0.41
+      }
+    },
+    {
+      "archivo": "tfidf_lr-s2026-sintetico.csv",
+      "arquitectura": "tfidf_lr",
+      "semilla": 2026,
+      "dominio": "sintetico",
+      "sha256": "2f292926982f89b4cf3bc1c3097eb196dedfaad61203b5143338f401af3a7bd7",
+      "umbrales": {
+        "ansiedad": 0.22,
+        "depresion": 0.41
+      }
+    },
+    {
+      "archivo": "tfidf_lr-s42-sintetico.csv",
+      "arquitectura": "tfidf_lr",
+      "semilla": 42,
+      "dominio": "sintetico",
+      "sha256": "2f292926982f89b4cf3bc1c3097eb196dedfaad61203b5143338f401af3a7bd7",
+      "umbrales": {
+        "ansiedad": 0.22,
+        "depresion": 0.41
+      }
+    },
+    {
+      "archivo": "tfidf_lr-s77-sintetico.csv",
+      "arquitectura": "tfidf_lr",
+      "semilla": 77,
+      "dominio": "sintetico",
+      "sha256": "2f292926982f89b4cf3bc1c3097eb196dedfaad61203b5143338f401af3a7bd7",
+      "umbrales": {
+        "ansiedad": 0.22,
+        "depresion": 0.41
+      }
+    }
+  ]
+}

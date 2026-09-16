@@ -1,0 +1,76 @@
+{
+  "best_global_step": 39,
+  "best_metric": 1.0,
+  "best_model_checkpoint": "d:\\Trabajo - Fable 5\\agente-beto\\entrenamiento\\checkpoints_crisis\\checkpoint-39",
+  "epoch": 1.0,
+  "eval_steps": 500,
+  "global_step": 39,
+  "is_hyper_param_search": false,
+  "is_local_process_zero": true,
+  "is_world_process_zero": true,
+  "log_history": [
+    {
+      "epoch": 0.2564102564102564,
+      "grad_norm": 11.388884544372559,
+      "learning_rate": 1.8461538461538465e-05,
+      "loss": 0.9290560722351074,
+      "step": 10
+    },
+    {
+      "epoch": 0.5128205128205128,
+      "grad_norm": 1.2558141946792603,
+      "learning_rate": 1.6752136752136753e-05,
+      "loss": 0.27046501636505127,
+      "step": 20
+    },
+    {
+      "epoch": 0.7692307692307693,
+      "grad_norm": 0.15218256413936615,
+      "learning_rate": 1.5042735042735043e-05,
+      "loss": 0.03806745707988739,
+      "step": 30
+    },
+    {
+      "epoch": 1.0,
+      "eval_accuracy": 1.0,
+      "eval_f1_macro": 1.0,
+      "eval_loss": 0.0010299026034772396,
+      "eval_precision_macro": 1.0,
+      "eval_recall_macro": 1.0,
+      "eval_runtime": 6.9032,
+      "eval_samples_per_second": 22.453,
+      "eval_steps_per_second": 1.449,
+      "step": 39
+    }
+  ],
+  "logging_steps": 10,
+  "max_steps": 117,
+  "num_input_tokens_seen": 0,
+  "num_train_epochs": 3,
+  "save_steps": 500,
+  "stateful_callbacks": {
+    "EarlyStoppingCallback": {
+      "args": {
+        "early_stopping_patience": 2,
+        "early_stopping_threshold": 0.0
+      },
+      "attributes": {
+        "early_stopping_patience_counter": 0
+      }
+    },
+    "TrainerControl": {
+      "args": {
+        "should_epoch_stop": false,
+        "should_evaluate": false,
+        "should_log": false,
+        "should_save": true,
+        "should_training_stop": false
+      },
+      "attributes": {}
+    }
+  },
+  "total_flos": 10514164438800.0,
+  "train_batch_size": 8,
+  "trial_name": null,
+  "trial_params": null
+}

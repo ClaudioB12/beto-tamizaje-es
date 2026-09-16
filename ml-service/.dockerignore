@@ -1,0 +1,8 @@
+# modelos/ SÍ entra en la imagen: el contenedor debe ser autocontenido para el
+# despliegue local sin servicios externos (PD3 del perfil de investigación).
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.md
