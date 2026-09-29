@@ -245,6 +245,22 @@ class TestEntrenamientoBeto:
         assert not torch.equal(clasificador.modelo.base_model.encoder.layer[0].attention.self.query.weight, antes)
 
     @pytest.mark.parametrize("arquitectura", ["beto_ajustado", "beto_sonda"])
+    def test_entrena_de_punta_a_punta_con_etiquetas_desconocidas(self, hiper, datos_pequenos, tmp_path, arquitectura):
+        # El sintético no tiene ningún -1, así que la prueba de humo nunca ejercitó
+        # la máscara. Aquí se simula MentalRiskES: la mitad de las filas solo está
+        # anotada en depresión. El entrenamiento debe completarse con pérdidas
+        # finitas en entrenamiento y validación.
+        from modelos.beto import ClasificadorBeto
+
+        train, val = (df.copy() for df in datos_pequenos)
+        train.loc[train.index[::2], "ansiedad"] = -1
+        val.loc[val.index[::2], "ansiedad"] = -1
+        informe = ClasificadorBeto(arquitectura, 13, hiper).construir().entrenar(train, val, carpeta_trabajo=tmp_path)
+        assert np.isfinite(informe["mejor_eval_loss"])
+        perdidas = [r["loss"] for r in informe["historial"] if "loss" in r]
+        assert perdidas and all(np.isfinite(perdidas))
+
+    @pytest.mark.parametrize("arquitectura", ["beto_ajustado", "beto_sonda"])
     def test_entrena_predice_guarda_y_recarga(self, hiper, datos_pequenos, tmp_path, arquitectura):
         # En la sonda, la recarga debe volver a quitar el pooler que
         # from_pretrained recrea al azar; si no, las predicciones cambiarían.

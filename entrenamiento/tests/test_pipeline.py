@@ -148,6 +148,16 @@ class TestAnalizar:
         assert any("NO REPORTAR" in a for a in r["advertencias"])
         resumen = (carpetas["resultados"] / "sintetico" / "resumen.md").read_text(encoding="utf-8")
         assert "NO REPORTAR" in resumen and "PE1" in resumen
+        # El rótulo va pegado a cada tabla, no solo en la cabecera del documento.
+        assert resumen.count("[NO CITABLE") == 2
+        for bloque in resumen.split("[NO CITABLE")[1:]:
+            assert bloque.lstrip(" —").split("\n", 2)[2].lstrip().startswith("|")
+        assert "DE entre semillas" in resumen and "bootstrap sobre fragmentos" in resumen
+        # TF–IDF es determinista: no puede contrastarse con Mann–Whitney.
+        tfidf = next(f for f in r["por_arquitectura"] if f["arquitectura"] == "tfidf_lr")
+        assert tfidf["determinista_entre_semillas"]
+        contra_tfidf = next(c for c in r["comparaciones_h1"] if c["b"] == "tfidf_lr")
+        assert contra_tfidf["prueba_semillas"]["mann_whitney_unilateral"] is None
 
     def test_se_niega_a_usar_predicciones_modificadas(self, experimento, tmp_path, capsys):
         carpetas, _ = experimento

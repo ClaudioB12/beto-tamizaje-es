@@ -116,9 +116,27 @@ class TestPruebaSemillas:
         assert "no puede ser < 0,05" in wilcoxon["nota"]
 
     def test_sin_diferencia_no_rechaza(self):
-        r = prueba_semillas([0.7] * 5, [0.7] * 5)
+        r = prueba_semillas([0.70, 0.71, 0.69, 0.72, 0.705], [0.71, 0.70, 0.72, 0.69, 0.705])
+        assert r["prueba_usada"] == "mann_whitney_unilateral"
         assert r["mann_whitney_unilateral"]["p"] > 0.05
-        assert r["wilcoxon_pareada_bilateral_ppi"]["p"] == 1.0
+
+    def test_un_grupo_determinista_no_cuenta_como_cinco_observaciones(self):
+        # TF–IDF: cinco corridas idénticas. Mann–Whitney daría p = 1/252 ≈ 0,004
+        # como si fueran cinco observaciones; la prueba correcta da 1/32.
+        r = prueba_semillas([0.81, 0.82, 0.80, 0.83, 0.815], [0.49] * 5)
+        assert r["b_determinista"] and r["prueba_usada"] == "wilcoxon_una_muestra_unilateral"
+        assert r["mann_whitney_unilateral"] is None
+        assert r["wilcoxon_una_muestra_unilateral"]["p"] == pytest.approx(1 / 32)
+        assert "determinista" in r["nota"]
+
+    def test_determinista_en_el_lado_a_invierte_la_hipotesis(self):
+        r = prueba_semillas([0.9] * 5, [0.70, 0.71, 0.69, 0.72, 0.705])
+        assert r["a_determinista"]
+        assert r["wilcoxon_una_muestra_unilateral"]["p"] == pytest.approx(1 / 32)
+
+    def test_ambos_deterministas_no_se_contrastan(self):
+        r = prueba_semillas([0.7] * 5, [0.6] * 5)
+        assert r["prueba_usada"] is None and "IC bootstrap" in r["nota"]
 
 
 class TestConcordancia:

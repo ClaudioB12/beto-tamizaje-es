@@ -27,6 +27,7 @@
       "f1_macro_de": 0.03279487238936856,
       "f1_macro_min": 0.5388577827547593,
       "f1_macro_max": 0.6239316239316239,
+      "determinista_entre_semillas": false,
       "ic_bootstrap": {
         "estimacion": 0.5916542201380489,
         "ic_inferior": 0.5278895060675565,
@@ -71,6 +72,7 @@
       "f1_macro_de": 0.09644248020302638,
       "f1_macro_min": 0.4279677295428352,
       "f1_macro_max": 0.6384615384615384,
+      "determinista_entre_semillas": false,
       "ic_bootstrap": {
         "estimacion": 0.5557525488646036,
         "ic_inferior": 0.5031953127024151,
@@ -115,6 +117,7 @@
       "f1_macro_de": 6.206335383118183e-17,
       "f1_macro_min": 0.49082934609250395,
       "f1_macro_max": 0.49082934609250395,
+      "determinista_entre_semillas": true,
       "ic_bootstrap": {
         "estimacion": 0.4908293460925039,
         "ic_inferior": 0.41138021204773445,
@@ -154,17 +157,22 @@
         "n_bootstrap": 10000
       },
       "prueba_semillas": {
+        "a_determinista": false,
+        "b_determinista": false,
+        "prueba_usada": "mann_whitney_unilateral",
         "mann_whitney_unilateral": {
           "U": 12.0,
           "p": 0.5793650793650793,
           "p_minimo_alcanzable": 0.003968253968253968,
           "r_rango_biserial": -0.040000000000000036
         },
+        "wilcoxon_una_muestra_unilateral": null,
         "wilcoxon_pareada_bilateral_ppi": {
           "p": 0.625,
           "p_minimo_alcanzable": 0.0625,
           "nota": "con 5 semillas su p mínimo es 0.0625: no puede ser < 0,05."
-        }
+        },
+        "nota": null
       }
     },
     {
@@ -181,17 +189,18 @@
         "n_bootstrap": 10000
       },
       "prueba_semillas": {
-        "mann_whitney_unilateral": {
-          "U": 25.0,
-          "p": 0.003968253968253968,
-          "p_minimo_alcanzable": 0.003968253968253968,
-          "r_rango_biserial": 1.0
+        "a_determinista": false,
+        "b_determinista": true,
+        "prueba_usada": "wilcoxon_una_muestra_unilateral",
+        "mann_whitney_unilateral": null,
+        "wilcoxon_una_muestra_unilateral": {
+          "p": 0.03125,
+          "valor_constante": 0.49082934609250395,
+          "semillas_contrastadas": 5,
+          "p_minimo_alcanzable": 0.03125
         },
-        "wilcoxon_pareada_bilateral_ppi": {
-          "p": 0.0625,
-          "p_minimo_alcanzable": 0.0625,
-          "nota": "con 5 semillas su p mínimo es 0.0625: no puede ser < 0,05."
-        }
+        "wilcoxon_pareada_bilateral_ppi": null,
+        "nota": "La arquitectura b es determinista: sus 5 corridas equivalen a una sola observación. Se contrasta la otra contra ese valor; Mann–Whitney exageraría la evidencia."
       }
     }
   ],
@@ -200,7 +209,7 @@
   "experimento": "sintetico-humo",
   "fuente": "sintetico",
   "humo": true,
-  "generado_en_utc": "2026-09-16T15:49:19+00:00",
+  "generado_en_utc": "2026-09-16T16:46:46+00:00",
   "advertencias": [
     "PRUEBA DE HUMO (1 época, 64 tokens): estas cifras solo verifican el pipeline. NO REPORTAR.",
     "Datos sintéticos: no miden el desempeño del tamizaje. NO REPORTAR."

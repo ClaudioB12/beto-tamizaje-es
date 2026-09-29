@@ -123,6 +123,8 @@ def analizar(tablas, n_bootstrap: int, semilla_bootstrap: int) -> dict:
                 "f1_macro_de": float(np.std(f1s, ddof=1)) if len(f1s) > 1 else None,
                 "f1_macro_min": float(np.min(f1s)),
                 "f1_macro_max": float(np.max(f1s)),
+                # Todas las semillas idénticas: las corridas son una sola observación.
+                "determinista_entre_semillas": len(f1s) > 1 and float(np.ptp(f1s)) == 0.0,
                 "ic_bootstrap": ic_media_semillas(y, preds, n_bootstrap, semilla=semilla_bootstrap),
                 "por_etiqueta_media": {
                     etiqueta: {
@@ -246,40 +248,85 @@ def _ic(d: dict) -> str:
     return f"{d['estimacion']:.3f} [{d['ic_inferior']:.3f}, {d['ic_superior']:.3f}]"
 
 
+NOTA_VARIABILIDAD = (
+    "Las dos medidas de variabilidad no son intercambiables. La **DE y el rango entre semillas** "
+    "describen cuánto cambia el F1 al cambiar la inicialización y el orden de los lotes, con los "
+    "fragmentos fijos. El **IC bootstrap sobre fragmentos** describe la incertidumbre por muestreo "
+    "del conjunto de prueba, con las semillas fijas, y por tanto NO incorpora la variabilidad entre "
+    "semillas. Un IC más estrecho que ±1 DE no es un error de cálculo."
+)
+
+
+def _marca_no_citable(r: dict) -> list[str]:
+    """Rótulo pegado a cada tabla, no solo en la cabecera: las tablas se copian sueltas."""
+    if not r.get("advertencias"):
+        return []
+    motivos = []
+    if r.get("humo"):
+        motivos.append("prueba de humo")
+    if r.get("fuente") == "sintetico":
+        motivos.append("datos sintéticos")
+    return [f"**[NO CITABLE — {' · '.join(motivos) or 'ver advertencias'}]**", ""]
+
+
+def _celda_prueba(prueba: dict | None) -> str:
+    if not prueba or not prueba.get("prueba_usada"):
+        return "— (sin variabilidad entre semillas)"
+    if prueba["prueba_usada"] == "mann_whitney_unilateral":
+        mw = prueba["mann_whitney_unilateral"]
+        return f"Mann–Whitney p = {mw['p']:.4f} (r = {mw['r_rango_biserial']:.2f})"
+    w = prueba["wilcoxon_una_muestra_unilateral"]
+    lado = "b" if prueba["b_determinista"] else "a"
+    return f"Wilcoxon 1 muestra p = {w['p']:.4f} ({lado} determinista)"
+
+
 def resumen_markdown(r: dict) -> str:
     lineas = [f"# Resultados — {r.get('experimento', '')}", ""]
     for advertencia in r.get("advertencias", []):
         lineas.append(f"> **{advertencia}**")
     lineas += ["", f"F1 macro: {r['definicion_f1_macro']}.", ""]
 
+    lineas += ["## PE1 — F1 macro por arquitectura", "", *_marca_no_citable(r)]
     lineas += [
-        "## PE1 — F1 macro por arquitectura",
-        "",
-        "| Dominio | Arquitectura | Media ± DE | Rango | IC 95 % bootstrap | F1 ansiedad | F1 depresión |",
+        "| Dominio | Arquitectura | F1 media ± DE entre semillas | Rango entre semillas | "
+        "IC 95 % bootstrap sobre fragmentos | F1 ansiedad | F1 depresión |",
         "|---|---|---|---|---|---|---|",
     ]
     for f in r["por_arquitectura"]:
         de = f"{f['f1_macro_de']:.3f}" if f["f1_macro_de"] is not None else "—"
+        determinista = " (determinista)" if f.get("determinista_entre_semillas") else ""
         lineas.append(
-            f"| {f['dominio']} | {f['arquitectura']} | {f['f1_macro_media']:.3f} ± {de} | "
+            f"| {f['dominio']} | {f['arquitectura']}{determinista} | {f['f1_macro_media']:.3f} ± {de} | "
             f"{f['f1_macro_min']:.3f}–{f['f1_macro_max']:.3f} | {_ic(f['ic_bootstrap'])} | "
             f"{f['por_etiqueta_media']['ansiedad']['f1']:.3f} | {f['por_etiqueta_media']['depresion']['f1']:.3f} |"
         )
+    lineas += ["", NOTA_VARIABILIDAD]
+    if any(f.get("determinista_entre_semillas") for f in r["por_arquitectura"]):
+        lineas += [
+            "",
+            "«Determinista»: todas sus semillas dan el mismo F1, así que sus corridas equivalen a una "
+            "sola observación. En H1 se contrasta contra ese valor con Wilcoxon de una muestra.",
+        ]
 
     lineas += ["", "## H1 — Diferencias entre arquitecturas", ""]
     if r["comparaciones_h1"]:
         lineas += [
-            "| Dominio | Comparación | Diferencia [IC 95 %] | IC excluye 0 | Mann–Whitney p (unilateral) | r |",
-            "|---|---|---|---|---|---|",
+            *_marca_no_citable(r),
+            "| Dominio | Comparación | Diferencia [IC 95 % bootstrap sobre fragmentos] | IC excluye 0 | "
+            "Prueba sobre semillas (unilateral) |",
+            "|---|---|---|---|---|",
         ]
         for c in r["comparaciones_h1"]:
-            mw = (c["prueba_semillas"] or {}).get("mann_whitney_unilateral")
-            p = f"{mw['p']:.4f}" if mw else "—"
-            rb = f"{mw['r_rango_biserial']:.2f}" if mw else "—"
             lineas.append(
                 f"| {c['dominio']} | {c['a']} − {c['b']} | {_ic(c['diferencia_f1_macro'])} | "
-                f"{'sí' if c['diferencia_f1_macro']['excluye_cero'] else 'no'} | {p} | {rb} |"
+                f"{'sí' if c['diferencia_f1_macro']['excluye_cero'] else 'no'} | {_celda_prueba(c['prueba_semillas'])} |"
             )
+        lineas += [
+            "",
+            "Con 5 contra 5 semillas, el p mínimo de Mann–Whitney es 1/252 ≈ 0,004 y con una "
+            "arquitectura determinista el de Wilcoxon de una muestra es 1/32 ≈ 0,031: son pisos que la "
+            "prueba no puede superar por grande que sea la diferencia real.",
+        ]
     else:
         lineas.append("Sin pares de arquitecturas para comparar.")
 
