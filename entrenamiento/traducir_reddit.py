@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     def traducir_lote(textos: list[str]) -> list[str]:
         entrada = tokenizer(textos, return_tensors="pt", padding=True, truncation=True, max_length=512).to(dispositivo)
         with torch.no_grad():
-            salida = modelo.generate(**entrada, num_beams=4, max_new_tokens=512)
+            salida = modelo.generate(**entrada, num_beams=4, max_length=512)
         return tokenizer.batch_decode(salida, skip_special_tokens=True)
 
     def guardar() -> None:
@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
         "transformers": transformers.__version__,
         "torch": torch.__version__,
         "dispositivo": dispositivo,
-        "decodificacion": {"num_beams": 4, "max_new_tokens": 512, "max_tokens_trozo": MAX_TOKENS_TROZO},
+        "decodificacion": {"num_beams": 4, "max_length": 512, "max_tokens_trozo": MAX_TOKENS_TROZO},
         "max_palabras_origen": args.max_palabras,
         "filas": len(final),
         "sha256_reddit_en": hashlib.sha256(args.entrada.read_bytes()).hexdigest(),
