@@ -4,6 +4,7 @@ Uso, desde entrenamiento/ (GPU recomendada: Colab T4):
     pip install -r requirements-traduccion.txt
     python traducir_reddit.py
     python traducir_reddit.py --lote 32 --max_palabras 400
+    python traducir_reddit.py --limite 200          # piloto: mide la velocidad y estima el total
 
 Sin APIs externas (proposición de diseño PD3): el modelo se descarga una vez
 de Hugging Face y se ejecuta en la máquina. Si Colab se desconecta, vuelve a
@@ -23,6 +24,7 @@ import hashlib
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Callable
 
@@ -112,6 +114,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--guardar_cada", type=int, default=500)
     p.add_argument("--muestra", type=int, default=120)
     p.add_argument("--semilla", type=int, default=42)
+    p.add_argument("--limite", type=int, default=None,
+                   help="Traduce solo N pendientes y estima el tiempo total (piloto)")
     args = p.parse_args(argv)
 
     import torch
@@ -125,6 +129,10 @@ def main(argv: list[str] | None = None) -> int:
         hechos = {k: v for k, v in hechos.items() if v.strip()}
     pendientes = origen[~origen["fragmento_id"].isin(hechos)]
     print(f"{len(hechos)} ya traducidas, {len(pendientes)} pendientes")
+    total_pendientes = len(pendientes)
+    if args.limite:
+        pendientes = pendientes.head(args.limite)
+    inicio_reloj = time.perf_counter()
 
     dispositivo = "cuda" if torch.cuda.is_available() else "cpu"
     tokenizer = MarianTokenizer.from_pretrained(args.modelo, revision=args.revision)
@@ -165,6 +173,18 @@ def main(argv: list[str] | None = None) -> int:
             desde_guardado = 0
             print(f"  {len(hechos)}/{len(origen)} traducidas", flush=True)
     guardar()
+
+    if args.limite:
+        segundos = time.perf_counter() - inicio_reloj
+        por_texto = segundos / max(1, len(pendientes))
+        restante_h = por_texto * (total_pendientes - len(pendientes)) / 3600
+        print(
+            f"Piloto: {len(pendientes)} textos en {segundos / 60:.1f} min "
+            f"({por_texto:.2f} s/texto en {dispositivo}). "
+            f"Faltan {total_pendientes - len(pendientes)}: unas {restante_h:.1f} h. "
+            "Revisa algunas traducciones en el CSV y lanza el comando sin --limite: retoma donde quedó."
+        )
+        return 0
 
     final = pd.read_csv(args.salida, dtype=str, keep_default_na=False, encoding="utf-8")
     vacias = int((final["texto_es"].str.strip() == "").sum())
