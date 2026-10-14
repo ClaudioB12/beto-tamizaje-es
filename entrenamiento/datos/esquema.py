@@ -13,7 +13,7 @@ ETIQUETAS = ("ansiedad", "depresion")
 POSITIVA, NEGATIVA, DESCONOCIDA = 1, 0, -1
 VALORES_ETIQUETA = {POSITIVA, NEGATIVA, DESCONOCIDA}
 
-DOMINIOS = {"mentalriskes", "clinico", "sintetico"}
+DOMINIOS = {"mentalriskes", "reddit", "clinico", "sintetico"}
 
 COLUMNAS_OBLIGATORIAS = (
     "fragmento_id",

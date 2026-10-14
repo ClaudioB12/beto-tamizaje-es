@@ -1,0 +1,4 @@
+# Solo para traducir_reddit.py (MarianMT, Helsinki-NLP/opus-mt-en-es).
+# Se instala ademas de requirements.txt. Sin tildes: ver nota en requirements.txt.
+sentencepiece==0.2.0
+sacremoses==0.1.1

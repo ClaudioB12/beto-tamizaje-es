@@ -2,8 +2,8 @@
 
 Pipeline completo del experimento computacional (PPI §2.2 y §2.5): datos,
 partición, tres arquitecturas × cinco semillas, evaluación, estadística y
-exportación. Todo funciona hoy con el dataset sintético; con MentalRiskES solo
-falta escribir su cargador en `datos/` y registrarlo en `datos/fuentes.py`.
+exportación. Funciona con el dataset sintético (pruebas) y con la fuente `reddit`, que
+sustituye a MentalRiskES como dominio de redes sociales (ver más abajo).
 
 ## Flujo
 
@@ -28,6 +28,27 @@ Cada paso verifica por hash que trabaja sobre lo que produjo el anterior:
 
 `<exp>` es la fuente, o `<fuente>-humo` con `--humo`. Los resultados de humo
 nunca comparten carpeta con los reales, y `exportar.py` no puede leerlos.
+
+## Fuente `reddit` (Reddit Mental Health Dataset, traducido)
+
+MentalRiskES no está disponible (solicitud sin respuesta). Se sustituye por el
+Reddit Mental Health Dataset (Low et al., 2020; Zenodo 10.17605/OSF.IO/7PEYQ;
+licencia PDDL 1.0, reutilización sujeta a los términos de la API de Reddit).
+Está en inglés y se traduce en local con MarianMT. Los textos van a
+`datos_reddit/`, que git ignora: solo se versionan scripts, conteos y hashes.
+
+```bash
+pip install -r requirements.txt -r requirements-traduccion.txt
+python preparar_reddit.py --entrada "RUTA/Data - Corpus"   # verifica MD5, limpia, balancea, anonimiza
+python traducir_reddit.py                                  # EN -> ES; reanudable; deja muestra_calidad.csv
+python particionar.py --fuente reddit                      # y desde aquí, el flujo de siempre
+```
+
+- **Archivos de entrada (8):** `depression`, `anxiety`, `relationships` y `parenting`, periodos `2018` y `pre`. Sin `post` (COVID) ni `2019` (se solapa con `pre`).
+- **Etiquetas (D2):** r/depression → depresión 1, ansiedad desconocida (-1). r/anxiety → ansiedad 1, depresión -1. Control → 0 y 0.
+- **Sujeto:** autor anonimizado con hash. Se excluyen los autores que publicaron en más de una clase y se limita a 5 publicaciones por autor.
+- **Control de calidad de la traducción:** dos evaluadores bilingües califican `muestra_calidad.csv` antes de congelar la partición.
+- **Ablación de fuga léxica:** `--fuente reddit_enmascarado` lee el mismo archivo con los términos de la etiqueta (depresión, ansiedad, pánico…) reemplazados por `[MASK]`.
 
 ## Retomar tras un corte
 
@@ -94,7 +115,7 @@ archivo, las columnas `sev_*` quedan vacías y PE3 aparece como no disponible.
 
 ## Lo que falta y por qué no está aquí
 
-- **Cargador de MentalRiskES**: requiere el corpus y la decisión D1.
+- **Cargador de MentalRiskES**: el corpus no llegó; lo sustituye la fuente `reddit`.
 - **Conjunto clínico**: requiere su cargador; se evalúa una sola vez con todo congelado.
 - **Integración con el ml-service y el backend**: el modelo multietiqueta cambia
   el contrato de `/ml/clasificar`, la tabla `mensajes` y el banco de plantillas.

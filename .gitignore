@@ -42,3 +42,6 @@ Thumbs.db
 # Temporales
 tmp/
 temp/
+# Reddit Mental Health Dataset: textos de terceros (términos de la API de
+# Reddit). Solo se versionan scripts, conteos y hashes.
+entrenamiento/datos_reddit/
