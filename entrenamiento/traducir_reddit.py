@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--revision", default=None, help="Commit del modelo en Hugging Face (fíjalo y regístralo)")
     p.add_argument("--lote", type=int, default=16)
     p.add_argument("--max_palabras", type=int, default=400)
-    p.add_argument("--guardar_cada", type=int, default=500)
+    p.add_argument("--guardar_cada", type=int, default=100)
     p.add_argument("--muestra", type=int, default=120)
     p.add_argument("--semilla", type=int, default=42)
     p.add_argument("--limite", type=int, default=None,
@@ -135,6 +135,13 @@ def main(argv: list[str] | None = None) -> int:
     inicio_reloj = time.perf_counter()
 
     dispositivo = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Dispositivo: {dispositivo}", flush=True)
+    if dispositivo == "cpu":
+        print(
+            "AVISO: sin GPU la traducción es decenas de veces más lenta. En Colab: "
+            "Entorno de ejecución > Cambiar tipo de entorno > T4 GPU.",
+            file=sys.stderr, flush=True,
+        )
     tokenizer = MarianTokenizer.from_pretrained(args.modelo, revision=args.revision)
     modelo = MarianMTModel.from_pretrained(args.modelo, revision=args.revision).to(dispositivo).eval()
     contar = lambda t: len(tokenizer(t, add_special_tokens=True)["input_ids"])
@@ -171,7 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         if desde_guardado >= args.guardar_cada:
             guardar()
             desde_guardado = 0
-            print(f"  {len(hechos)}/{len(origen)} traducidas", flush=True)
+            minutos = (time.perf_counter() - inicio_reloj) / 60
+            print(f"  {len(hechos)}/{len(origen)} traducidas ({minutos:.1f} min)", flush=True)
     guardar()
 
     if args.limite:
