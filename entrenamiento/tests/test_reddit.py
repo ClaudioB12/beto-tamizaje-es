@@ -7,7 +7,7 @@ from datos import reddit
 from datos.esquema import DESCONOCIDA, NEGATIVA, POSITIVA
 from datos.particion import particionar
 from datos.preparacion import deduplicar
-from traducir_reddit import muestra_estratificada, recortar_palabras, trocear
+from traducir_reddit import diagnosticar, muestra_estratificada, oraciones_en_ingles, recortar_palabras, trocear
 
 
 def _crudo(filas: list[tuple]) -> pd.DataFrame:
@@ -175,3 +175,50 @@ class TestMuestraCalidad:
         muestra = muestra_estratificada(df, n=18, semilla=1)
         assert {"adecuacion_1a5", "fluidez_1a5", "senal_salud_mental_1a5", "aceptable_si_no"} <= set(muestra.columns)
         assert set(muestra["etiqueta"]) == {"depresion", "ansiedad", "control"}
+
+
+class TestDiagnostico:
+    @staticmethod
+    def _df(filas):
+        df = pd.DataFrame(filas, columns=["texto_en", "texto_es"])
+        df.insert(0, "fragmento_id", [f"f{i}" for i in range(len(df))])
+        return df
+
+    def test_marca_la_traduccion_que_omite_oraciones(self):
+        en = _texto(100)
+        diag = diagnosticar(self._df([(en, _texto(60)), (en, _texto(98))]), max_palabras=400)
+        assert diag["fragmento_id"].tolist() == ["f0"]
+        assert diag["motivos"].iloc[0] == "cobertura"
+
+    def test_la_cobertura_usa_solo_las_palabras_traducidas(self):
+        diag = diagnosticar(self._df([(_texto(500), _texto(390))]), max_palabras=400)
+        assert diag.empty
+
+    def test_marca_bucles_que_no_estan_en_el_original(self):
+        diag = diagnosticar(self._df([("Help me now please friends", "¡¡¡¡¡¡¡¡¡¡¡¡ ayuda ahora amigos")]), 400)
+        assert diag["motivos"].iloc[0] == "repeticion"
+
+    def test_detecta_titulos_sin_traducir(self):
+        es = "New to Corporate America and I have no idea what to do. He tenido ansiedad toda mi vida."
+        assert oraciones_en_ingles(es) == ["New to Corporate America and I have no idea what to do."]
+        assert oraciones_en_ingles("Me he perdido a mí mismo. No sé qué hacer con mi vida.") == []
+
+    def test_las_filas_sin_traducir_no_se_diagnostican(self):
+        assert diagnosticar(self._df([(_texto(50), "")]), 400).empty
+
+    def test_origen_no_ingles(self):
+        diag = diagnosticar(self._df([("20190413 發病日，整日睡睡醒醒四次，進入連續的夢境", "20190413 ,,")]), 400)
+        assert diag["motivos"].iloc[0] == "origen_no_ingles"
+
+
+class TestOrigenNoIngles:
+    def test_detecta_otros_alfabetos(self):
+        assert reddit.es_origen_no_ingles("發病日，整日睡睡醒醒四次")
+        assert not reddit.es_origen_no_ingles("I feel so tired, café and naïve 😂")
+
+    def test_el_cargador_los_excluye(self, tmp_path):
+        ruta = _traducido(tmp_path, [("s1", "control", "Mi hijo empezó el colegio."), ("s2", "control", "20190413 ,,")])
+        df = pd.read_csv(ruta, dtype=str)
+        df.loc[1, "texto_en"] = "發病日，整日睡睡醒醒四次"
+        df.to_csv(ruta, index=False)
+        assert reddit.cargar_clasificacion(ruta)["sujeto_id"].tolist() == ["s1"]

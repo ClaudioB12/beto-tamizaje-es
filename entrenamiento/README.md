@@ -41,6 +41,8 @@ Está en inglés y se traduce en local con MarianMT. Los textos van a
 pip install -r requirements.txt -r requirements-traduccion.txt
 python preparar_reddit.py --entrada "RUTA/Data - Corpus"   # verifica MD5, limpia, balancea, anonimiza
 python traducir_reddit.py                                  # EN -> ES; reanudable; deja muestra_calidad.csv
+python traducir_reddit.py --diagnosticar                   # revisa una salida: cobertura, bucles, inglés residual
+python traducir_reddit.py --rehacer_marcadas               # vuelve a traducir solo las filas marcadas
 python particionar.py --fuente reddit                      # y desde aquí, el flujo de siempre
 ```
 
@@ -48,6 +50,8 @@ python particionar.py --fuente reddit                      # y desde aquí, el f
 - **Etiquetas (D2):** r/depression → depresión 1, ansiedad desconocida (-1). r/anxiety → ansiedad 1, depresión -1. Control → 0 y 0.
 - **Sujeto:** autor anonimizado con hash. Se excluyen los autores que publicaron en más de una clase y se limita a 5 publicaciones por autor.
 - **Control de calidad de la traducción:** dos evaluadores bilingües califican `muestra_calidad.csv` antes de congelar la partición.
+- **Diagnóstico automático:** al terminar (o con `--diagnosticar`) se escribe `diagnostico_traduccion.csv` con las filas cuya traducción omite contenido (cobertura < 0,8), entra en bucle o deja oraciones en inglés. La traducción se hace en trozos de hasta 100 tokens: con trozos de 400, opus-mt omitía en torno a un tercio de los textos de más de 200 palabras.
+- **Publicaciones en otro idioma:** el cargador descarta las que no están escritas en alfabeto latino (traducirlas EN→ES no tiene sentido).
 - **Ablación de fuga léxica:** `--fuente reddit_enmascarado` lee el mismo archivo con los términos de la etiqueta (depresión, ansiedad, pánico…) reemplazados por `[MASK]`.
 
 ## Retomar tras un corte

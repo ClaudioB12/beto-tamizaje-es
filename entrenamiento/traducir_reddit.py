@@ -5,6 +5,8 @@ Uso, desde entrenamiento/ (GPU recomendada: Colab T4):
     python traducir_reddit.py
     python traducir_reddit.py --lote 32 --max_palabras 400
     python traducir_reddit.py --limite 200          # piloto: mide la velocidad y estima el total
+    python traducir_reddit.py --diagnosticar        # solo revisa una salida existente
+    python traducir_reddit.py --rehacer_marcadas    # vuelve a traducir las filas con problemas
 
 Sin APIs externas (proposición de diseño PD3): el modelo se descarga una vez
 de Hugging Face y se ejecuta en la máquina. Si Colab se desconecta, vuelve a
@@ -30,13 +32,33 @@ from typing import Callable
 
 import pandas as pd
 
+from datos.reddit import es_origen_no_ingles
+
 RAIZ = Path(__file__).resolve().parent
 CARPETA = RAIZ / "datos_reddit"
 INFORME = RAIZ / "particiones" / "reddit_traduccion.json"
 MODELO_POR_DEFECTO = "Helsinki-NLP/opus-mt-en-es"
 
-# Marian admite 512 tokens; se deja margen para no truncar en silencio.
-MAX_TOKENS_TROZO = 400
+# Trozos cortos: opus-mt se entrenó con oraciones sueltas y, con entradas largas,
+# omite oraciones enteras sin avisar. Con trozos de 400 tokens, los textos de más
+# de 200 palabras perdían en torno a un tercio del contenido (revisión de las
+# 9000 traducciones, 16/10/2026).
+MAX_TOKENS_TROZO = 100
+
+# Diagnóstico de la traducción. Cobertura = palabras ES / palabras EN traducidas.
+COBERTURA_MINIMA = 0.8
+PALABRAS_MIN_COBERTURA = 20
+_REPETICION = re.compile(r"(\S)\1{9,}|\b(\w+)(?:\s+\2\b){3,}", flags=re.IGNORECASE)
+_PALABRA = re.compile(r"[a-záéíóúñü']+")
+_VACIAS_EN = frozenset(
+    "the and you that with have this was for not are but just they what like about my "
+    "i'm it's don't is it be so do can he she we her his him them their there been would "
+    "could should will when how all your if or an of to in on at from".split()
+)
+_VACIAS_ES = frozenset(
+    "el la de que y en los las un una por con para no es lo se mi me pero muy más como "
+    "yo ya del al le su sus esto esta este ella él nos fue ser estoy tengo".split()
+)
 
 _FIN_DE_ORACION = re.compile(r"(?<=[.!?])\s+")
 
@@ -85,6 +107,67 @@ def _partir_oracion(oracion: str, max_tokens: int, contar: Callable[[str], int])
     return piezas
 
 
+def oraciones_en_ingles(texto: str) -> list[str]:
+    """Oraciones del texto traducido que siguen en inglés (títulos, jerga sin traducir)."""
+    resultado = []
+    for oracion in _FIN_DE_ORACION.split(texto):
+        palabras = _PALABRA.findall(oracion.lower())
+        if len(palabras) < 4:
+            continue
+        en = sum(p in _VACIAS_EN for p in palabras)
+        es = sum(p in _VACIAS_ES for p in palabras)
+        if en >= 2 and en > es:
+            resultado.append(oracion)
+    return resultado
+
+
+def diagnosticar(df: pd.DataFrame, max_palabras: int) -> pd.DataFrame:
+    """Marca las filas traducidas con problemas. Las filas sin traducir se ignoran.
+
+    Motivos: ``cobertura`` (faltan oraciones), ``repeticion`` (bucle del modelo),
+    ``ingles`` (quedó texto sin traducir) y ``origen_no_ingles`` (el original no
+    está en inglés; el cargador lo excluye, no se puede corregir traduciendo).
+    """
+    hechas = df[df["texto_es"].str.strip() != ""]
+    filas = []
+    for fid, en, es in zip(hechas["fragmento_id"], hechas["texto_en"], hechas["texto_es"]):
+        n_en = min(len(en.split()), max_palabras)
+        cobertura = len(es.split()) / max(1, n_en)
+        motivos = []
+        if es_origen_no_ingles(en):
+            motivos.append("origen_no_ingles")
+        else:
+            if cobertura < COBERTURA_MINIMA and n_en >= PALABRAS_MIN_COBERTURA:
+                motivos.append("cobertura")
+            if _REPETICION.search(es) and not _REPETICION.search(en):
+                motivos.append("repeticion")
+            if oraciones_en_ingles(es):
+                motivos.append("ingles")
+        if motivos:
+            filas.append({"fragmento_id": fid, "cobertura": round(cobertura, 2), "motivos": "|".join(motivos)})
+    return pd.DataFrame(filas, columns=["fragmento_id", "cobertura", "motivos"])
+
+
+def resumen_diagnostico(diag: pd.DataFrame, traducidas: int) -> dict:
+    conteo = {m: int(diag["motivos"].str.contains(m).sum())
+              for m in ("cobertura", "repeticion", "ingles", "origen_no_ingles")}
+    return {"traducidas": traducidas, "marcadas": len(diag), **conteo}
+
+
+def _escribir_diagnostico(df: pd.DataFrame, salida: Path, max_palabras: int) -> dict:
+    diag = diagnosticar(df, max_palabras)
+    diag.to_csv(salida.parent / "diagnostico_traduccion.csv", index=False, encoding="utf-8")
+    resumen = resumen_diagnostico(diag, int((df["texto_es"].str.strip() != "").sum()))
+    print(
+        f"Diagnóstico: {resumen['marcadas']} de {resumen['traducidas']} filas marcadas "
+        f"(cobertura {resumen['cobertura']}, repetición {resumen['repeticion']}, "
+        f"inglés {resumen['ingles']}, origen no inglés {resumen['origen_no_ingles']}). "
+        f"Detalle en {salida.parent / 'diagnostico_traduccion.csv'}",
+        flush=True,
+    )
+    return resumen
+
+
 def muestra_estratificada(df: pd.DataFrame, n: int, semilla: int) -> pd.DataFrame:
     """Muestra para el control de calidad, estratificada por etiqueta y longitud."""
     largo = pd.qcut(df["texto_en"].str.split().str.len(), q=3, labels=["corto", "medio", "largo"], duplicates="drop")
@@ -116,7 +199,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--semilla", type=int, default=42)
     p.add_argument("--limite", type=int, default=None,
                    help="Traduce solo N pendientes y estima el tiempo total (piloto)")
+    p.add_argument("--diagnosticar", action="store_true",
+                   help="Solo revisa la salida existente y escribe diagnostico_traduccion.csv")
+    p.add_argument("--rehacer_marcadas", action="store_true",
+                   help="Vuelve a traducir las filas que el diagnóstico marca (no las de origen no inglés)")
     args = p.parse_args(argv)
+
+    if args.diagnosticar:
+        if not args.salida.exists():
+            print(f"No existe {args.salida}", file=sys.stderr)
+            return 1
+        previo = pd.read_csv(args.salida, dtype=str, keep_default_na=False, encoding="utf-8")
+        _escribir_diagnostico(previo, args.salida, args.max_palabras)
+        return 0
 
     import torch
     from transformers import MarianMTModel, MarianTokenizer
@@ -127,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
         previo = pd.read_csv(args.salida, dtype=str, keep_default_na=False, encoding="utf-8")
         hechos = dict(zip(previo["fragmento_id"], previo["texto_es"]))
         hechos = {k: v for k, v in hechos.items() if v.strip()}
+        if args.rehacer_marcadas:
+            diag = diagnosticar(previo, args.max_palabras)
+            rehacer = diag.loc[diag["motivos"] != "origen_no_ingles", "fragmento_id"]
+            for fid in rehacer:
+                hechos.pop(fid, None)
+            print(f"Se volverán a traducir {len(rehacer)} filas marcadas por el diagnóstico.")
     pendientes = origen[~origen["fragmento_id"].isin(hechos)]
     print(f"{len(hechos)} ya traducidas, {len(pendientes)} pendientes")
     total_pendientes = len(pendientes)
@@ -200,6 +301,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Quedaron {vacias} filas sin traducir; vuelve a lanzar el comando.", file=sys.stderr)
         return 1
 
+    diagnostico = _escribir_diagnostico(final, args.salida, args.max_palabras)
     muestra = muestra_estratificada(final, args.muestra, args.semilla)
     muestra.to_csv(args.salida.parent / "muestra_calidad.csv", index=False, encoding="utf-8-sig")
 
@@ -217,6 +319,7 @@ def main(argv: list[str] | None = None) -> int:
         "sha256_reddit_en": hashlib.sha256(args.entrada.read_bytes()).hexdigest(),
         "sha256_reddit_es": hashlib.sha256(args.salida.read_bytes()).hexdigest(),
         "muestra_calidad": len(muestra),
+        "diagnostico": diagnostico,
     }
     INFORME.parent.mkdir(parents=True, exist_ok=True)
     INFORME.write_text(json.dumps(informe, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

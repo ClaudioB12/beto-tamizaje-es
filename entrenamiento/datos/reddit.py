@@ -47,6 +47,15 @@ _TERMINOS_ETIQUETA = re.compile(
 )
 MASCARA = "[MASK]"
 
+# Unas pocas publicaciones de los subreddits están en otro idioma (p. ej. chino).
+# Traducirlas EN→ES produce basura, así que el cargador las descarta.
+UMBRAL_LETRAS_LATINAS = 0.9
+
+
+def es_origen_no_ingles(texto: str) -> bool:
+    letras = [c for c in texto if c.isalpha()]
+    return bool(letras) and sum(c.isascii() for c in letras) / len(letras) < UMBRAL_LETRAS_LATINAS
+
 
 def cargar_clasificacion(ruta: Path | str = RUTA_POR_DEFECTO) -> pd.DataFrame:
     return _cargar(ruta, enmascarar=False)
@@ -72,6 +81,7 @@ def _cargar(ruta: Path | str, *, enmascarar: bool) -> pd.DataFrame:
     faltantes = [c for c in COLUMNAS_TRADUCIDAS if c not in crudo.columns]
     if faltantes:
         raise ValueError(f"{ruta.name} no tiene las columnas {faltantes}. ¿Terminó la traducción?")
+    crudo = crudo[~crudo["texto_en"].map(es_origen_no_ingles)].reset_index(drop=True)
     sin_traducir = crudo["texto_es"].str.strip() == ""
     if sin_traducir.any():
         raise ValueError(
