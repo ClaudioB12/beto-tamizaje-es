@@ -43,6 +43,7 @@ python preparar_reddit.py --entrada "RUTA/Data - Corpus"   # verifica MD5, limpi
 python traducir_reddit.py                                  # EN -> ES; reanudable; deja muestra_calidad.csv
 python traducir_reddit.py --diagnosticar                   # revisa una salida: cobertura, bucles, inglés residual
 python traducir_reddit.py --rehacer_marcadas               # vuelve a traducir solo las filas marcadas
+python traducir_reddit.py --solo_muestra                   # regenera muestra_calidad.csv (original recortado a lo traducido)
 python particionar.py --fuente reddit                      # y desde aquí, el flujo de siempre
 ```
 

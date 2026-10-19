@@ -222,3 +222,20 @@ class TestOrigenNoIngles:
         df.loc[1, "texto_en"] = "發病日，整日睡睡醒醒四次"
         df.to_csv(ruta, index=False)
         assert reddit.cargar_clasificacion(ruta)["sujeto_id"].tolist() == ["s1"]
+
+
+class TestMuestraRecortada:
+    def test_el_original_se_recorta_a_lo_traducido(self):
+        df = pd.DataFrame(
+            {
+                "fragmento_id": [f"f{i}" for i in range(30)],
+                "etiqueta": ["depresion", "ansiedad", "control"] * 10,
+                "texto_en": [_texto(10 + 50 * i) for i in range(30)],
+                "texto_es": ["es"] * 30,
+            }
+        )
+        muestra = muestra_estratificada(df, n=9, semilla=1, max_palabras=400)
+        assert muestra["texto_en"].str.split().str.len().max() <= 400
+        largos = muestra[muestra["palabras_original"] > 400]
+        assert (largos["recortado"] == "sí").all()
+        assert (muestra.loc[muestra["palabras_original"] <= 400, "recortado"] == "no").all()

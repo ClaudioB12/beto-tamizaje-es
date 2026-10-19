@@ -7,6 +7,7 @@ Uso, desde entrenamiento/ (GPU recomendada: Colab T4):
     python traducir_reddit.py --limite 200          # piloto: mide la velocidad y estima el total
     python traducir_reddit.py --diagnosticar        # solo revisa una salida existente
     python traducir_reddit.py --rehacer_marcadas    # vuelve a traducir las filas con problemas
+    python traducir_reddit.py --solo_muestra        # regenera muestra_calidad.csv sin traducir
 
 Sin APIs externas (proposición de diseño PD3): el modelo se descarga una vez
 de Hugging Face y se ejecuta en la máquina. Si Colab se desconecta, vuelve a
@@ -168,8 +169,13 @@ def _escribir_diagnostico(df: pd.DataFrame, salida: Path, max_palabras: int) -> 
     return resumen
 
 
-def muestra_estratificada(df: pd.DataFrame, n: int, semilla: int) -> pd.DataFrame:
-    """Muestra para el control de calidad, estratificada por etiqueta y longitud."""
+def muestra_estratificada(df: pd.DataFrame, n: int, semilla: int, max_palabras: int = 400) -> pd.DataFrame:
+    """Muestra para el control de calidad, estratificada por etiqueta y longitud.
+
+    ``texto_en`` se recorta a las mismas ``max_palabras`` que se tradujeron, para
+    que los evaluadores comparen el original con su traducción y no marquen
+    como incompleto lo que nunca se tradujo.
+    """
     largo = pd.qcut(df["texto_en"].str.split().str.len(), q=3, labels=["corto", "medio", "largo"], duplicates="drop")
     estratos = df.assign(_estrato=df["etiqueta"] + "|" + largo.astype(str))
     por_estrato = max(1, n // estratos["_estrato"].nunique())
@@ -179,8 +185,17 @@ def muestra_estratificada(df: pd.DataFrame, n: int, semilla: int) -> pd.DataFram
         if estratos["_estrato"].value_counts().min() >= por_estrato
         else estratos.sample(n=min(n, len(estratos)), random_state=semilla)
     )
-    columnas = ["fragmento_id", "etiqueta", "texto_en", "texto_es"]
-    salida = muestra[columnas].reset_index(drop=True)
+    palabras = muestra["texto_en"].str.split().str.len()
+    salida = pd.DataFrame(
+        {
+            "fragmento_id": muestra["fragmento_id"],
+            "etiqueta": muestra["etiqueta"],
+            "palabras_original": palabras,
+            "recortado": (palabras > max_palabras).map({True: "sí", False: "no"}),
+            "texto_en": muestra["texto_en"].map(lambda t: recortar_palabras(t, max_palabras)),
+            "texto_es": muestra["texto_es"],
+        }
+    ).reset_index(drop=True)
     for criterio in ("adecuacion_1a5", "fluidez_1a5", "senal_salud_mental_1a5", "aceptable_si_no", "evaluador", "comentario"):
         salida[criterio] = ""
     return salida
@@ -201,9 +216,18 @@ def main(argv: list[str] | None = None) -> int:
                    help="Traduce solo N pendientes y estima el tiempo total (piloto)")
     p.add_argument("--diagnosticar", action="store_true",
                    help="Solo revisa la salida existente y escribe diagnostico_traduccion.csv")
+    p.add_argument("--solo_muestra", action="store_true",
+                   help="Solo regenera muestra_calidad.csv a partir de la salida existente")
     p.add_argument("--rehacer_marcadas", action="store_true",
                    help="Vuelve a traducir las filas que el diagnóstico marca (no las de origen no inglés)")
     args = p.parse_args(argv)
+
+    if args.solo_muestra:
+        final = pd.read_csv(args.salida, dtype=str, keep_default_na=False, encoding="utf-8")
+        muestra = muestra_estratificada(final, args.muestra, args.semilla, args.max_palabras)
+        muestra.to_csv(args.salida.parent / "muestra_calidad.csv", index=False, encoding="utf-8-sig")
+        print(f"Escrita {args.salida.parent / 'muestra_calidad.csv'} ({len(muestra)} pares)")
+        return 0
 
     if args.diagnosticar:
         if not args.salida.exists():
@@ -302,7 +326,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     diagnostico = _escribir_diagnostico(final, args.salida, args.max_palabras)
-    muestra = muestra_estratificada(final, args.muestra, args.semilla)
+    muestra = muestra_estratificada(final, args.muestra, args.semilla, args.max_palabras)
     muestra.to_csv(args.salida.parent / "muestra_calidad.csv", index=False, encoding="utf-8-sig")
 
     import transformers
