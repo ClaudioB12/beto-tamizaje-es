@@ -133,7 +133,8 @@ def diagnosticar(df: pd.DataFrame, max_palabras: int) -> pd.DataFrame:
     filas = []
     for fid, en, es in zip(hechas["fragmento_id"], hechas["texto_en"], hechas["texto_es"]):
         n_en = min(len(en.split()), max_palabras)
-        cobertura = len(es.split()) / max(1, n_en)
+        # Solo cuentan las palabras con letras: "• • • •" no es una traducción.
+        cobertura = sum(any(c.isalpha() for c in w) for w in es.split()) / max(1, n_en)
         motivos = []
         if es_origen_no_ingles(en):
             motivos.append("origen_no_ingles")

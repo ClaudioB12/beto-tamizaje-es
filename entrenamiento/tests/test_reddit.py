@@ -211,6 +211,16 @@ class TestDiagnostico:
         assert diag["motivos"].iloc[0] == "origen_no_ingles"
 
 
+class TestTraduccionSinLetras:
+    def test_el_diagnostico_no_cuenta_simbolos_como_palabras(self):
+        df = TestDiagnostico._df([(_texto(60), " ".join(["•"] * 60))])
+        assert diagnosticar(df, 400)["motivos"].iloc[0].startswith("cobertura")
+
+    def test_el_cargador_descarta_traducciones_sin_letras(self, tmp_path):
+        ruta = _traducido(tmp_path, [("s1", "control", "Mi hijo empezó el colegio."), ("s2", "control", "¡¡¡¡¡¡¡¡¡¡¡¡")])
+        assert reddit.cargar_clasificacion(ruta)["sujeto_id"].tolist() == ["s1"]
+
+
 class TestOrigenNoIngles:
     def test_detecta_otros_alfabetos(self):
         assert reddit.es_origen_no_ingles("發病日，整日睡睡醒醒四次")

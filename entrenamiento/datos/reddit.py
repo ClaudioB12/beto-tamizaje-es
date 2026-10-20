@@ -52,6 +52,11 @@ MASCARA = "[MASK]"
 UMBRAL_LETRAS_LATINAS = 0.9
 
 
+def sin_letras(texto: str) -> bool:
+    """Traducción degenerada: el modelo devolvió solo símbolos (p. ej. "¡¡¡¡" o "• • •")."""
+    return not any(c.isalpha() for c in texto)
+
+
 def es_origen_no_ingles(texto: str) -> bool:
     letras = [c for c in texto if c.isalpha()]
     return bool(letras) and sum(c.isascii() for c in letras) / len(letras) < UMBRAL_LETRAS_LATINAS
@@ -81,7 +86,10 @@ def _cargar(ruta: Path | str, *, enmascarar: bool) -> pd.DataFrame:
     faltantes = [c for c in COLUMNAS_TRADUCIDAS if c not in crudo.columns]
     if faltantes:
         raise ValueError(f"{ruta.name} no tiene las columnas {faltantes}. ¿Terminó la traducción?")
-    crudo = crudo[~crudo["texto_en"].map(es_origen_no_ingles)].reset_index(drop=True)
+    descartar = crudo["texto_en"].map(es_origen_no_ingles) | (
+        (crudo["texto_es"].str.strip() != "") & crudo["texto_es"].map(sin_letras)
+    )
+    crudo = crudo[~descartar].reset_index(drop=True)
     sin_traducir = crudo["texto_es"].str.strip() == ""
     if sin_traducir.any():
         raise ValueError(
