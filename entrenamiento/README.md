@@ -55,6 +55,21 @@ python particionar.py --fuente reddit                      # y desde aquí, el f
 - **Publicaciones en otro idioma:** el cargador descarta las que no están escritas en alfabeto latino (traducirlas EN→ES no tiene sentido).
 - **Ablación de fuga léxica:** `--fuente reddit_enmascarado` lee el mismo archivo con los términos de la etiqueta (depresión, ansiedad, pánico…) reemplazados por `[MASK]`.
 
+## Colab
+
+`requirements.txt` instala torch 2.13.0, pero Colab trae un `torchvision`
+compilado para otra versión de torch. transformers lo importa si existe y falla
+con `operator torchvision::nms does not exist` (o `Could not import module
+'EarlyStoppingCallback'`). El pipeline no usa torchvision: desinstálalo después
+de instalar los requisitos.
+
+```bash
+pip install -q -r requirements.txt
+pip uninstall -y -q torchvision torchaudio
+```
+
+Los avisos de pip sobre `google-colab` y `pandas` no afectan a los scripts.
+
 ## Retomar tras un corte
 
 `entrenar.py` escribe `manifiesto.json` al final de cada corrida. Si Colab se
