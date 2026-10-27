@@ -42,24 +42,35 @@ class _PrimerToken(torch.nn.Module):
         return estados_ocultos[:, 0]
 
 
-def perdida_enmascarada(logits: torch.Tensor, etiquetas: torch.Tensor) -> torch.Tensor:
-    """BCE solo sobre las etiquetas conocidas; -1 no aporta gradiente (D2).
+def perdida_enmascarada(
+    logits: torch.Tensor, etiquetas: torch.Tensor, peso_negativo_debil: float = 0.0
+) -> torch.Tensor:
+    """BCE sobre las etiquetas conocidas; el -1 cuenta según ``peso_negativo_debil``.
 
-    Promedia sobre las etiquetas conocidas del lote, no sobre filas: una fila
-    con sus dos etiquetas conocidas pesa el doble que una con una sola.
+    - w = 0 (D2): el -1 no aporta gradiente.
+    - 0 < w ≤ 1 (opción B): el -1 cuenta como negativo con peso w.
+
+    Es un promedio ponderado sobre las celdas del lote: Σ(peso · BCE) / Σ peso,
+    con peso 1 en las etiquetas conocidas y w en las desconocidas. Con w = 0
+    se reduce exactamente a la media sobre las etiquetas conocidas, de modo que
+    una fila con sus dos etiquetas conocidas pesa el doble que una con una sola.
     """
     conocidas = etiquetas >= 0
-    if not conocidas.any():
+    pesos = torch.where(conocidas, torch.ones_like(etiquetas), torch.full_like(etiquetas, peso_negativo_debil))
+    if not (pesos > 0).any():
         raise ValueError(
             "Lote sin ninguna etiqueta conocida. El esquema lo impide fila a fila; "
             "revisa el cargador que produjo estos datos."
         )
-    return binary_cross_entropy_with_logits(logits[conocidas], etiquetas[conocidas].float())
+    objetivo = torch.where(conocidas, etiquetas, torch.zeros_like(etiquetas)).float()
+    por_celda = binary_cross_entropy_with_logits(logits, objetivo, reduction="none")
+    return (por_celda * pesos).sum() / pesos.sum()
 
 
 class TrainerEnmascarado(Trainer):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, peso_negativo_debil: float = 0.0, **kwargs):
         super().__init__(*args, **kwargs)
+        self.peso_negativo_debil = peso_negativo_debil
         # El forward de BERT acepta **kwargs, así que el Trainer supone que la
         # pérdida ya viene normalizada por lote efectivo y NO la divide entre los
         # pasos de acumulación. Con una pérdida propia eso multiplicaría el
@@ -70,7 +81,7 @@ class TrainerEnmascarado(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         entradas = {clave: valor for clave, valor in inputs.items() if clave != "labels"}
         salidas = model(**entradas)
-        perdida = perdida_enmascarada(salidas.logits, inputs["labels"])
+        perdida = perdida_enmascarada(salidas.logits, inputs["labels"], self.peso_negativo_debil)
         return (perdida, salidas) if return_outputs else perdida
 
 
@@ -192,6 +203,7 @@ class ClasificadorBeto:
             eval_dataset=_DatasetTextos(val, self.tokenizer, h.max_length, con_etiquetas=True),
             data_collator=ColadorEtiquetas(self.tokenizer),
             callbacks=[EarlyStoppingCallback(early_stopping_patience=h.paciencia)],
+            peso_negativo_debil=h.peso_negativo_debil,
         )
         trainer.train()
         self.modelo = trainer.model

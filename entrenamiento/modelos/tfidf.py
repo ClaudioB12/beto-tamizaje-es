@@ -4,6 +4,10 @@ El PPI dice "regresión logística one-vs-rest". ``OneVsRestClassifier`` no sabe
 ignorar etiquetas desconocidas (-1, decisión D2), así que se entrena una
 regresión binaria por etiqueta, cada una solo sobre las filas donde su
 etiqueta es conocida. Es la misma formulación con enmascaramiento explícito.
+
+Con la opción B (``peso_negativo_debil`` = w > 0), las filas con etiqueta
+desconocida entran también, como negativas y con ``sample_weight`` = w. Con
+w = 0 no entran: el ajuste es idéntico al de D2.
 """
 import json
 from pathlib import Path
@@ -15,7 +19,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 
 from configuracion import ConfigTfidf
-from datos.esquema import DESCONOCIDA, ETIQUETAS, POSITIVA
+from datos.esquema import DESCONOCIDA, ETIQUETAS, NEGATIVA, POSITIVA
 
 ARQUITECTURA = "tfidf_lr"
 
@@ -42,10 +46,16 @@ class ClasificadorTfidf:
 
         self.modelos = {}
         filas_por_etiqueta = {}
+        peso = self.config.peso_negativo_debil
         for etiqueta in ETIQUETAS:
-            conocidas = (train[etiqueta] != DESCONOCIDA).to_numpy()
-            y = train.loc[conocidas, etiqueta].to_numpy()
-            if len(np.unique(y)) < 2:
+            columna = train[etiqueta].to_numpy()
+            conocidas = columna != DESCONOCIDA
+            # Con w = 0 las desconocidas se excluyen (no basta con peso 0: así el
+            # ajuste no depende de cómo trate el solver las muestras sin peso).
+            usadas = conocidas | (peso > 0)
+            y = np.where(conocidas, columna, NEGATIVA)[usadas]
+            pesos = np.where(conocidas, 1.0, peso)[usadas]
+            if len(np.unique(y[conocidas[usadas]])) < 2:
                 raise ValueError(
                     f"{etiqueta}: las filas conocidas de entrenamiento tienen una sola "
                     "clase; no se puede ajustar un clasificador binario"
@@ -53,13 +63,14 @@ class ClasificadorTfidf:
             modelo = LogisticRegression(
                 C=self.config.C, max_iter=self.config.max_iter, random_state=self.semilla
             )
-            modelo.fit(matriz[conocidas], y)
+            modelo.fit(matriz[usadas], y, sample_weight=pesos if peso > 0 else None)
             self.modelos[etiqueta] = modelo
             filas_por_etiqueta[etiqueta] = int(conocidas.sum())
 
         return {
             "vocabulario": len(self.vectorizador.vocabulary_),
             "filas_entrenamiento_por_etiqueta": filas_por_etiqueta,
+            "peso_negativo_debil": peso,
         }
 
     def predecir_probabilidades(self, df: pd.DataFrame) -> np.ndarray:

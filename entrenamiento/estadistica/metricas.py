@@ -83,3 +83,36 @@ def f1_control(y: np.ndarray, pred: np.ndarray) -> float | None:
     fp = int((~control_real & control_pred).sum())
     fn = int((control_real & ~control_pred).sum())
     return float(_f1(tp, fp, fn))
+
+
+def confusion_cruzada(y: np.ndarray, pred: np.ndarray) -> dict[str, dict]:
+    """Cuánto asigna el modelo la OTRA etiqueta de riesgo (VD1, PPI §1.7).
+
+    Para cada par ordenado «a→b»: entre las filas con a positiva y b no
+    positiva (negativa o desconocida), proporción en que se predice b. Con
+    Reddit, «depresion→ansiedad» es la proporción de posts de r/depression que
+    el modelo marca también como ansiedad. En el conjunto clínico, donde b es
+    conocida, son falsos positivos de b.
+
+    «control→alguna» es la proporción de filas de control (ambas etiquetas
+    negativas y conocidas) con al menos una etiqueta predicha.
+
+    El F1 de D3 no ve este error en Reddit, porque solo compara cada clase con
+    el control: hay que reportarlo aparte. Proporción None si no hay filas.
+    """
+    y, pred = np.asarray(y), np.asarray(pred)
+    salida = {}
+    for a, origen in enumerate(ETIQUETAS):
+        for b, destino in enumerate(ETIQUETAS):
+            if a == b:
+                continue
+            filas = (y[:, a] == 1) & (y[:, b] != 1)
+            salida[f"{origen}→{destino}"] = _proporcion(pred[filas, b] == 1)
+    control = (y == 0).all(axis=1)
+    salida["control→alguna"] = _proporcion((pred[control] == 1).any(axis=1))
+    return salida
+
+
+def _proporcion(aciertos: np.ndarray) -> dict:
+    n = int(aciertos.size)
+    return {"proporcion": float(aciertos.mean()) if n else None, "filas": n}

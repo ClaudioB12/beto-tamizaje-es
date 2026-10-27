@@ -54,7 +54,17 @@ def main(argv: list[str] | None = None) -> int:
 
     particion, informe_particion = registro.cargar_particion_congelada(args.fuente, args.particiones)
     raiz = args.corridas / registro.nombre_experimento(args.fuente, args.humo)
+    distintas = corridas_con_otro_peso(raiz, config.peso_negativo_debil)
+    if distintas:
+        print(
+            f"{raiz} ya tiene corridas con otro peso_negativo_debil ({distintas}); la "
+            f"configuración actual usa {config.peso_negativo_debil}. Mezclarlas invalidaría "
+            "la comparación: usa otra carpeta con --corridas.",
+            file=sys.stderr,
+        )
+        return 2
     entorno = registro.describir_entorno()
+    print(f"peso_negativo_debil = {config.peso_negativo_debil}", flush=True)
 
     for arquitectura in arquitecturas:
         for semilla in semillas:
@@ -76,6 +86,20 @@ def main(argv: list[str] | None = None) -> int:
             detalle = f"eval_loss={perdida:.4f}" if perdida is not None else "sin pérdida de validación"
             print(f"  {carpeta.name}: lista en {manifiesto['duracion_s']} s, {detalle}", flush=True)
     return 0
+
+
+def corridas_con_otro_peso(raiz: Path, peso: float) -> dict[str, float]:
+    """Corridas completas de ``raiz`` entrenadas con un w distinto de ``peso``.
+
+    Las corridas anteriores a la opción B no registran el campo: valen 0 (D2).
+    """
+    distintas = {}
+    for ruta in sorted(raiz.glob("*/manifiesto.json")):
+        hiper = registro.leer_json(ruta)["hiperparametros"]
+        anterior = float(hiper.get("peso_negativo_debil", 0.0))
+        if anterior != peso:
+            distintas[ruta.parent.name] = anterior
+    return distintas
 
 
 def ejecutar_corrida(

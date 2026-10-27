@@ -41,3 +41,10 @@ def calibrar_umbrales(val: pd.DataFrame, probabilidades: np.ndarray) -> dict[str
             "en_borde_de_rejilla": mejor in (0, len(REJILLA) - 1),
         }
     return umbrales
+
+
+def aplicar_umbrales(probabilidades: np.ndarray, umbrales: dict[str, dict]) -> np.ndarray:
+    """Matriz (n, 2) de 0/1 en el orden de ``ETIQUETAS``."""
+    return np.column_stack(
+        [(probabilidades[:, j] >= umbrales[etiqueta]["umbral"]).astype(int) for j, etiqueta in enumerate(ETIQUETAS)]
+    )

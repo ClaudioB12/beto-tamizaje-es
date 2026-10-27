@@ -55,6 +55,43 @@ python particionar.py --fuente reddit                      # y desde aquí, el f
 - **Publicaciones en otro idioma:** el cargador descarta las que no están escritas en alfabeto latino (traducirlas EN→ES no tiene sentido).
 - **Ablación de fuga léxica:** `--fuente reddit_enmascarado` lee el mismo archivo con los términos de la etiqueta (depresión, ansiedad, pánico…) reemplazados por `[MASK]`.
 
+## Etiqueta no observada: D2 y opción B
+
+Con D2 (pérdida enmascarada) el modelo nunca ve "depresión sin ansiedad". En la
+prueba de humo con Reddit, BETO ajustado marcó **ambas** etiquetas en el 97–99 %
+de los posts de salud mental, y el F1 (0,97) no lo mostraba: con D2 cada
+etiqueta solo se compara con el control.
+
+- **`etiquetas.peso_negativo_debil` (w)** en `experimento.yaml`: 0 = D2 (por
+  defecto, idéntico al comportamiento anterior); 0 < w ≤ 1 = opción B, el -1
+  cuenta como negativo con peso w. Se aplica a las tres arquitecturas.
+- **Confusión cruzada** (`estadistica/metricas.py`): «depresion→ansiedad» es la
+  proporción de textos de depresión a los que el modelo asigna también ansiedad;
+  «control→alguna», la de controles con alguna etiqueta. `analizar.py` la reporta
+  en prueba, y `evaluar.py` la registra en validación en `indice.json`.
+- `entrenar.py` se niega a mezclar en una carpeta corridas con distinto w.
+
+### Elegir w (en Colab, con GPU T4)
+
+`buscar_peso.py` entrena una semilla por cada w y mide **solo en validación**;
+la prueba no se toca. No elige w: deja la tabla para el asesor.
+
+```bash
+python buscar_peso.py --fuente reddit --humo                      # w ∈ {0; 0,1; 0,3; 0,5; 1}, BETO ajustado y TF–IDF
+python buscar_peso.py --fuente reddit --humo --pesos 0 0.2 0.4    # otros valores
+python buscar_peso.py --fuente reddit                             # sin --humo: configuración completa (lento)
+```
+
+Escribe `resultados/busqueda_peso/<exp>/tabla.csv` y `resumen.md`, y se puede
+relanzar tras un corte: lo ya medido se reutiliza. Cuando el equipo elija w, se
+escribe en `experimento.yaml` y las corridas oficiales van a una carpeta nueva:
+
+```bash
+python entrenar.py --fuente reddit --corridas corridas_w03   # ejemplo para w = 0,3
+python evaluar.py  --fuente reddit --corridas corridas_w03 --predicciones predicciones_w03
+python analizar.py --fuente reddit --predicciones predicciones_w03 --resultados resultados_w03
+```
+
 ## Colab
 
 `requirements.txt` instala torch 2.13.0, pero Colab trae un `torchvision`
@@ -88,7 +125,8 @@ entrenamiento/
 ├── evaluacion/               umbrales, instrumentos PHQ-9/GAD-7, severidad, predicciones
 ├── estadistica/              métricas, bootstrap, pruebas, kappas, escala
 ├── particionar.py · entrenar.py · evaluar.py · analizar.py · exportar.py
-├── tests/                    132 tests, ~1 min en CPU
+├── buscar_peso.py            compara valores de w en validación (opción B)
+├── tests/                    191 tests, ~1 min en CPU
 │
 ├── generar_dataset.py        LEGADO: genera el CSV sintético (no regenerar)
 └── train.py                  LEGADO: no usar
@@ -98,7 +136,7 @@ entrenamiento/
 
 | Decisión | Dónde vive | Estado en el código |
 |---|---|---|
-| D2 etiqueta desconocida | `datos/esquema.py`, pérdida enmascarada | implementada con `-1` |
+| D2 etiqueta desconocida | `datos/esquema.py`, `modelos/`, `experimento.yaml` → `etiquetas` | `-1` enmascarado (w = 0); opción B con w > 0, elegir con `buscar_peso.py` |
 | D3 definición de F1 macro | `estadistica/metricas.py` | propuesta; cambiarla es tocar una función |
 | D4 bandas de severidad | `evaluacion/severidad.py` | **sin cortes**: se leen de un archivo congelado |
 | D5 barrido de la sonda | `config/experimento.yaml` → `sonda` | cada semilla elige su tasa por `eval_loss` |

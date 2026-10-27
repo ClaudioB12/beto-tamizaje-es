@@ -6,7 +6,7 @@ from sklearn.metrics import cohen_kappa_score, f1_score
 from estadistica.bootstrap import ic_brecha_dominio, ic_diferencia, ic_media_semillas
 from estadistica.concordancia import kappa_cohen, kappa_ponderado
 from estadistica.escala import alfa_cronbach, omega_mcdonald, v_aiken
-from estadistica.metricas import f1_control, f1_macro, f1_macro_lote, metricas_por_etiqueta
+from estadistica.metricas import confusion_cruzada, f1_control, f1_macro, f1_macro_lote, metricas_por_etiqueta
 from estadistica.pruebas import prueba_semillas
 
 
@@ -195,3 +195,31 @@ class TestEscala:
         items = factor * cargas + rng.normal(size=(8000, 5)) * np.sqrt(1 - cargas**2)
         verdadero = cargas.sum() ** 2 / (cargas.sum() ** 2 + (1 - cargas**2).sum())
         assert omega_mcdonald(items)["omega"] == pytest.approx(verdadero, abs=0.02)
+
+
+class TestConfusionCruzada:
+    def test_cuenta_la_otra_etiqueta_entre_los_positivos_de_una(self):
+        # Como en Reddit: cada post observa una sola etiqueta.
+        y = np.array([[1, -1], [1, -1], [1, -1], [1, -1], [-1, 1], [-1, 1], [0, 0], [0, 0]])
+        pred = np.array([[1, 1], [1, 1], [1, 1], [1, 0], [0, 1], [1, 1], [0, 0], [0, 1]])
+        c = confusion_cruzada(y, pred)
+        assert c["ansiedad→depresion"] == {"proporcion": 0.75, "filas": 4}
+        assert c["depresion→ansiedad"] == {"proporcion": 0.5, "filas": 2}
+        assert c["control→alguna"] == {"proporcion": 0.5, "filas": 2}
+
+    def test_el_f1_de_d3_no_ve_la_confusion(self):
+        y = np.array([[1, -1], [-1, 1], [0, 0], [0, 0]])
+        siempre_ambas = np.array([[1, 1], [1, 1], [0, 0], [0, 0]])
+        assert f1_macro(y, siempre_ambas) == 1.0
+        c = confusion_cruzada(y, siempre_ambas)
+        assert c["ansiedad→depresion"]["proporcion"] == 1.0 and c["depresion→ansiedad"]["proporcion"] == 1.0
+
+    def test_excluye_los_comorbidos_y_cuenta_falsos_positivos_si_b_es_conocida(self):
+        y = np.array([[1, 1], [1, 0], [1, 0]])
+        pred = np.array([[1, 1], [1, 1], [1, 0]])
+        assert confusion_cruzada(y, pred)["ansiedad→depresion"] == {"proporcion": 0.5, "filas": 2}
+
+    def test_sin_filas_la_proporcion_es_none(self):
+        c = confusion_cruzada(np.array([[1, -1]]), np.array([[1, 0]]))
+        assert c["depresion→ansiedad"] == {"proporcion": None, "filas": 0}
+        assert c["control→alguna"] == {"proporcion": None, "filas": 0}

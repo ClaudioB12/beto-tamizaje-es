@@ -81,6 +81,73 @@ class TestPerdidaEnmascarada:
             perdida_enmascarada(torch.zeros(2, 2), torch.full((2, 2), -1.0))
 
 
+class TestPerdidaConNegativoDebil:
+    """Opción B: el -1 cuenta como negativo con peso w (D2 es w = 0)."""
+
+    LOGITS = [[2.0, -1.0], [0.5, 3.0]]
+    ETIQUETAS = [[1.0, -1.0], [0.0, 1.0]]
+
+    def test_con_w_cero_es_la_perdida_enmascarada(self):
+        from torch.nn.functional import binary_cross_entropy_with_logits
+
+        from modelos.beto import perdida_enmascarada
+
+        esperado = binary_cross_entropy_with_logits(torch.tensor([2.0, 0.5, 3.0]), torch.tensor([1.0, 0.0, 1.0]))
+        obtenido = perdida_enmascarada(torch.tensor(self.LOGITS), torch.tensor(self.ETIQUETAS), 0.0)
+        assert torch.isclose(obtenido, esperado)
+
+    def test_con_w_uno_el_menos_uno_es_un_negativo_pleno(self):
+        from torch.nn.functional import binary_cross_entropy_with_logits
+
+        from modelos.beto import perdida_enmascarada
+
+        esperado = binary_cross_entropy_with_logits(torch.tensor(self.LOGITS), torch.tensor([[1.0, 0.0], [0.0, 1.0]]))
+        obtenido = perdida_enmascarada(torch.tensor(self.LOGITS), torch.tensor(self.ETIQUETAS), 1.0)
+        assert torch.isclose(obtenido, esperado)
+
+    def test_w_intermedio_es_un_promedio_ponderado(self):
+        from torch.nn.functional import binary_cross_entropy_with_logits
+
+        from modelos.beto import perdida_enmascarada
+
+        bce = binary_cross_entropy_with_logits(
+            torch.tensor(self.LOGITS), torch.tensor([[1.0, 0.0], [0.0, 1.0]]), reduction="none"
+        )
+        pesos = torch.tensor([[1.0, 0.3], [1.0, 1.0]])
+        esperado = (bce * pesos).sum() / pesos.sum()
+        obtenido = perdida_enmascarada(torch.tensor(self.LOGITS), torch.tensor(self.ETIQUETAS), 0.3)
+        assert torch.isclose(obtenido, esperado)
+
+    def test_el_menos_uno_recibe_gradiente_hacia_negativo(self):
+        from modelos.beto import perdida_enmascarada
+
+        logits = torch.tensor(self.LOGITS, requires_grad=True)
+        perdida_enmascarada(logits, torch.tensor(self.ETIQUETAS), 0.3).backward()
+        # Gradiente positivo sobre el logit: el descenso lo empuja hacia "no".
+        assert logits.grad[0, 1] > 0
+
+    def test_con_w_positivo_un_lote_solo_de_desconocidas_es_valido(self):
+        from modelos.beto import perdida_enmascarada
+
+        perdida = perdida_enmascarada(torch.zeros(2, 2), torch.full((2, 2), -1.0), 0.5)
+        assert torch.isclose(perdida, torch.log(torch.tensor(2.0)))
+
+    def test_el_trainer_recibe_w_de_los_hiperparametros(self, hiper, particion, tmp_path, monkeypatch):
+        import modelos.beto as beto
+
+        recibidos = []
+        original = beto.perdida_enmascarada
+
+        def espia(logits, etiquetas, peso_negativo_debil=0.0):
+            recibidos.append(peso_negativo_debil)
+            return original(logits, etiquetas, peso_negativo_debil)
+
+        monkeypatch.setattr(beto, "perdida_enmascarada", espia)
+        clasificador = beto.ClasificadorBeto("beto_ajustado", 13, hiper.con(max_epochs=1, peso_negativo_debil=0.25))
+        clasificador.entrenar(particion.train.head(8), particion.val.head(4), carpeta_trabajo=tmp_path)
+        assert recibidos and set(recibidos) == {0.25}
+
+
 def test_colador_rellena_y_conserva_el_menos_uno(beto_diminuto):
     from transformers import AutoTokenizer
 
@@ -306,6 +373,35 @@ class TestTfidf:
         assert informe["filas_entrenamiento_por_etiqueta"]["ansiedad"] == len(train) - 30
         assert informe["filas_entrenamiento_por_etiqueta"]["depresion"] == len(train)
 
+    def test_con_w_uno_equivale_a_tratar_el_menos_uno_como_negativo(self, particion):
+        con_desconocidas = particion.train.copy()
+        con_desconocidas.loc[con_desconocidas.index[:30], "ansiedad"] = -1
+        como_negativas = con_desconocidas.copy()
+        como_negativas.loc[como_negativas.index[:30], "ansiedad"] = 0
+
+        debil = ClasificadorTfidf(42, ConfigTfidf(2, 1.0, 1000, peso_negativo_debil=1.0))
+        informe = debil.entrenar(con_desconocidas)
+        pleno = ClasificadorTfidf(42, self.CONFIG)
+        pleno.entrenar(como_negativas)
+        np.testing.assert_allclose(
+            debil.predecir_probabilidades(particion.test), pleno.predecir_probabilidades(particion.test), atol=1e-6
+        )
+        # El informe sigue contando solo las filas con etiqueta conocida.
+        assert informe["filas_entrenamiento_por_etiqueta"]["ansiedad"] == len(con_desconocidas) - 30
+        assert informe["peso_negativo_debil"] == 1.0
+
+    def test_un_w_intermedio_queda_entre_ignorar_y_negar(self, particion):
+        train = particion.train.copy()
+        positivas = train.index[train["ansiedad"] == 1][:20]
+        train.loc[positivas, "ansiedad"] = -1
+        probabilidades = {}
+        for peso in (0.0, 0.5, 1.0):
+            clasificador = ClasificadorTfidf(42, ConfigTfidf(2, 1.0, 1000, peso_negativo_debil=peso))
+            clasificador.entrenar(train)
+            probabilidades[peso] = clasificador.predecir_probabilidades(train.loc[positivas])[:, 0].mean()
+        # Esas filas son de ansiedad: cuanto más pesan como negativas, menos ansiedad se les predice.
+        assert probabilidades[0.0] > probabilidades[0.5] > probabilidades[1.0]
+
     def test_rechaza_una_etiqueta_con_una_sola_clase(self):
         df = construir_df([(f"f{i}", f"s{i}", f"texto {i}", 0, i % 2) for i in range(10)])
         with pytest.raises(ValueError, match="ansiedad"):
@@ -379,6 +475,40 @@ class TestConfigEntrenamiento:
     def test_rechaza_una_metrica_de_parada_distinta(self, tmp_path):
         with pytest.raises(ConfiguracionInvalidaError, match="eval_loss"):
             cargar_config_entrenamiento(_yaml(tmp_path, parada_temprana="{metrica: f1, paciencia: 2}"))
+
+
+class TestPesoNegativoDebil:
+    def test_sin_la_seccion_vale_cero(self, tmp_path):
+        config = cargar_config_entrenamiento(_yaml(tmp_path))
+        assert config.peso_negativo_debil == 0.0
+        assert config.beto.peso_negativo_debil == 0.0 and config.tfidf.peso_negativo_debil == 0.0
+
+    def test_el_experimento_declara_d2(self):
+        assert cargar_config_entrenamiento().peso_negativo_debil == 0.0
+
+    def test_se_aplica_a_las_tres_arquitecturas(self, tmp_path):
+        config = cargar_config_entrenamiento(_yaml(tmp_path, etiquetas="{peso_negativo_debil: 0.3}"))
+        assert config.beto.peso_negativo_debil == 0.3 and config.tfidf.peso_negativo_debil == 0.3
+        sonda = construir_clasificador("beto_sonda", 13, config, learning_rate_sonda=1.0e-3)
+        assert sonda.hiper.peso_negativo_debil == 0.3
+
+    @pytest.mark.parametrize("valor", ["1.5", "-0.1", "alto"])
+    def test_rechaza_valores_fuera_de_0_1(self, tmp_path, valor):
+        with pytest.raises(ConfiguracionInvalidaError, match="peso_negativo_debil"):
+            cargar_config_entrenamiento(_yaml(tmp_path, etiquetas=f"{{peso_negativo_debil: {valor}}}"))
+
+    def test_cambiar_w_no_toca_el_resto(self):
+        config = cargar_config_entrenamiento()
+        otra = config.con_peso_negativo_debil(0.5)
+        assert otra.beto.con(peso_negativo_debil=0.0) == config.beto
+        assert otra.semillas == config.semillas and otra.tfidf.C == config.tfidf.C
+        with pytest.raises(ValueError):
+            config.con_peso_negativo_debil(2)
+
+    def test_un_clasificador_guardado_sin_el_campo_se_carga_con_w_cero(self, hiper):
+        datos = hiper.como_dict()
+        del datos["peso_negativo_debil"]
+        assert HiperparametrosBeto(**datos).peso_negativo_debil == 0.0
 
 
 class TestFabrica:

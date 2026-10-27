@@ -35,6 +35,10 @@ class HiperparametrosBeto:
     dropout: float
     max_epochs: int
     paciencia: int
+    # Opción B de D2 (pendiente de aprobación). Con 0, idéntico a la pérdida
+    # enmascarada. Tiene valor por defecto para que los clasificador.json
+    # guardados antes de existir el campo se sigan cargando.
+    peso_negativo_debil: float = 0.0
 
     @property
     def acumulacion(self) -> int:
@@ -53,6 +57,7 @@ class ConfigTfidf:
     ngram_max: int
     C: float
     max_iter: int
+    peso_negativo_debil: float = 0.0
 
     def como_dict(self) -> dict:
         return asdict(self)
@@ -66,6 +71,18 @@ class ConfigEntrenamiento:
     tfidf: ConfigTfidf
     semillas: tuple[int, ...]
     arquitecturas: tuple[str, ...]
+    peso_negativo_debil: float = 0.0
+
+    def con_peso_negativo_debil(self, peso: float) -> "ConfigEntrenamiento":
+        """La misma configuración con otro w, aplicado a las tres arquitecturas."""
+        _validar_peso(peso, "peso_negativo_debil")
+        peso = float(peso)
+        return dataclasses.replace(
+            self,
+            beto=self.beto.con(peso_negativo_debil=peso),
+            tfidf=dataclasses.replace(self.tfidf, peso_negativo_debil=peso),
+            peso_negativo_debil=peso,
+        )
 
     def hiperparametros_sonda(self, learning_rate: float) -> HiperparametrosBeto:
         """La sonda comparte todo con el ajuste fino salvo tasa y épocas (D5)."""
@@ -167,18 +184,38 @@ def cargar_config_entrenamiento(ruta: Path | str = RUTA_POR_DEFECTO) -> ConfigEn
             f"{ruta}: arquitecturas debe ser un subconjunto de {list(ARQUITECTURAS)}"
         )
 
+    peso = _peso_negativo_debil(datos, ruta)
+
     return ConfigEntrenamiento(
-        beto=beto,
+        beto=beto.con(peso_negativo_debil=peso),
         sonda_learning_rates=tuple(float(t) for t in tasas),
         sonda_max_epochs=_entero(sonda, "max_epochs", ruta, "sonda."),
         tfidf=ConfigTfidf(
             ngram_max=_entero(tfidf, "ngram_max", ruta, "tfidf."),
             C=_flotante(tfidf, "C", ruta, "tfidf."),
             max_iter=_entero(tfidf, "max_iter", ruta, "tfidf."),
+            peso_negativo_debil=peso,
         ),
         semillas=tuple(semillas),
         arquitecturas=tuple(arquitecturas),
+        peso_negativo_debil=peso,
     )
+
+
+def _peso_negativo_debil(datos: dict, ruta) -> float:
+    """w de la opción B. Si la sección no existe, 0: la pérdida enmascarada de D2."""
+    etiquetas = datos.get("etiquetas") or {}
+    valor = etiquetas.get("peso_negativo_debil", 0.0)
+    try:
+        _validar_peso(valor, "etiquetas.peso_negativo_debil")
+    except ValueError as error:
+        raise ConfiguracionInvalidaError(f"{ruta}: {error}") from None
+    return float(valor)
+
+
+def _validar_peso(valor, nombre: str) -> None:
+    if not _es_numero(valor) or not 0 <= valor <= 1:
+        raise ValueError(f"{nombre} debe ser un número entre 0 y 1; es {valor!r}")
 
 
 def _es_numero(valor) -> bool:

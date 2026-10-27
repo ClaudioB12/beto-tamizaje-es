@@ -14,6 +14,21 @@ particion:
   # la partición se congela una vez y no cambia entre corridas.
   semilla: 42
 
+# --- Etiquetas -------------------------------------------------------------
+
+# Cada publicación de Reddit observa una sola etiqueta: un post de r/depression
+# no dice si su autor tiene también ansiedad. Esa etiqueta se codifica -1.
+#
+# peso_negativo_debil (w) decide cómo cuenta ese -1 en el entrenamiento:
+#   0    -> se ignora (pérdida enmascarada, decisión D2). Valor por defecto.
+#   0..1 -> cuenta como negativo con peso w (opción B, pendiente de aprobar).
+#   1    -> cuenta como negativo pleno.
+# Con w = 0 la prueba de humo marcó ambas etiquetas en el 97-99 % de los posts
+# de salud mental. Para comparar valores sin tocar la prueba: buscar_peso.py.
+# Cambiar w exige otra carpeta de corridas (entrenar.py lo comprueba).
+etiquetas:
+  peso_negativo_debil: 0.0
+
 # --- BETO (ajustado y sonda) ------------------------------------------------
 
 modelo_base: dccuchile/bert-base-spanish-wwm-cased

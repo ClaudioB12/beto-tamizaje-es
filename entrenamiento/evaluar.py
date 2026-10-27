@@ -7,8 +7,9 @@ Uso, desde entrenamiento/:
 
 Para cada corrida, en este orden y sin ajustar nada del modelo:
     1. calibra un umbral por etiqueta en VALIDACIÓN -> corrida/umbrales.json
-    2. predice PRUEBA con esos umbrales            -> predicciones/<experimento>/<corrida>-<dominio>.csv
-    3. si se pasan bandas congeladas (D4), asigna severidad
+    2. mide la confusión cruzada en VALIDACIÓN      -> indice.json (diagnóstico)
+    3. predice PRUEBA con esos umbrales            -> predicciones/<experimento>/<corrida>-<dominio>.csv
+    4. si se pasan bandas congeladas (D4), asigna severidad
 
 predicciones/<experimento>/indice.json registra el hash de cada archivo; analizar.py
 se niega a usar predicciones modificadas después.
@@ -24,7 +25,9 @@ import registro
 from datos.fuentes import FUENTES
 from evaluacion.predicciones import construir_predicciones
 from evaluacion.severidad import cargar_bandas
-from evaluacion.umbrales import calibrar_umbrales
+from datos.esquema import ETIQUETAS
+from estadistica.metricas import confusion_cruzada
+from evaluacion.umbrales import aplicar_umbrales, calibrar_umbrales
 from modelos import cargar_clasificador
 
 
@@ -66,8 +69,13 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         clasificador = cargar_clasificador(carpeta / "modelo")
-        umbrales = calibrar_umbrales(particion.val, clasificador.predecir_probabilidades(particion.val))
+        probabilidades_val = clasificador.predecir_probabilidades(particion.val)
+        umbrales = calibrar_umbrales(particion.val, probabilidades_val)
         registro.escribir_json(carpeta / "umbrales.json", umbrales)
+        # En validación, no en prueba: es la cifra que puede guiar decisiones (w).
+        cruzada_val = confusion_cruzada(
+            particion.val[list(ETIQUETAS)].to_numpy(), aplicar_umbrales(probabilidades_val, umbrales)
+        )
 
         tabla = construir_predicciones(
             particion.test, clasificador.predecir_probabilidades(particion.test), umbrales, bandas
@@ -84,9 +92,12 @@ def main(argv: list[str] | None = None) -> int:
                 "dominio": dominio,
                 "sha256": registro.sha256_bytes(contenido),
                 "umbrales": {etiqueta: datos["umbral"] for etiqueta, datos in umbrales.items()},
+                "peso_negativo_debil": float(manifiesto["hiperparametros"].get("peso_negativo_debil", 0.0)),
+                "confusion_cruzada_validacion": cruzada_val,
             }
         )
         print(f"  {nombre}: {len(tabla)} fragmentos, umbrales {indice['archivos'][-1]['umbrales']}")
+        print(f"    confusión cruzada en validación: {_texto_cruzada(cruzada_val)}")
         en_borde = [etiqueta for etiqueta, datos in umbrales.items() if datos["en_borde_de_rejilla"]]
         if en_borde:
             indice["archivos"][-1]["umbrales_en_borde"] = en_borde
@@ -98,6 +109,13 @@ def main(argv: list[str] | None = None) -> int:
     registro.escribir_json(salida / "indice.json", indice)
     print(f"Predicciones en {salida}")
     return 0
+
+
+def _texto_cruzada(cruzada: dict) -> str:
+    return " | ".join(
+        f"{par} {datos['proporcion']:.0%}" if datos["proporcion"] is not None else f"{par} —"
+        for par, datos in cruzada.items()
+    )
 
 
 def _argumentos(argv: list[str] | None) -> argparse.Namespace:

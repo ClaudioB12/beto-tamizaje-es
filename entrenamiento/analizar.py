@@ -23,14 +23,22 @@ from datos.esquema import ETIQUETAS
 from datos.fuentes import FUENTES
 from estadistica.bootstrap import N_BOOTSTRAP_PPI, ic_brecha_dominio, ic_diferencia, ic_media_semillas
 from estadistica.concordancia import kappa_ponderado
-from estadistica.metricas import DEFINICION_F1_MACRO, f1_control, f1_macro, metricas_por_etiqueta
+from estadistica.metricas import (
+    DEFINICION_F1_MACRO,
+    confusion_cruzada,
+    f1_control,
+    f1_macro,
+    metricas_por_etiqueta,
+)
 from estadistica.pruebas import prueba_semillas
 from evaluacion.instrumentos import INSTRUMENTO_POR_ETIQUETA, ORDEN_POR_INSTRUMENTO, categoria
 
 # H1: el ajuste fino supera a la sonda y al baseline (PPI §1.6).
 COMPARACIONES_H1 = (("beto_ajustado", "beto_sonda"), ("beto_ajustado", "tfidf_lr"))
-# PE2: brecha = F1(redes sociales) − F1(conversación clínica).
-BRECHA = ("mentalriskes", "clinico")
+# PE2: brecha = F1(redes sociales) − F1(conversación clínica). El origen es el
+# corpus de redes sociales que se haya usado: Reddit traducido o MentalRiskES.
+ORIGENES_BRECHA = ("reddit", "mentalriskes")
+DESTINO_BRECHA = "clinico"
 ORDEN_ARQUITECTURAS = ("beto_ajustado", "beto_sonda", "tfidf_lr")
 
 
@@ -52,9 +60,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     resultados = analizar(tablas, args.bootstrap, args.semilla_bootstrap)
+    pesos = sorted({float(a.get("peso_negativo_debil", 0.0)) for a in registro.leer_json(carpeta / "indice.json")["archivos"]})
     resultados.update(
         {
             "experimento": experimento,
+            "peso_negativo_debil": pesos[0] if len(pesos) == 1 else pesos,
             "fuente": args.fuente,
             "humo": args.humo,
             "generado_en_utc": registro.ahora_utc(),
@@ -112,6 +122,7 @@ def analizar(tablas, n_bootstrap: int, semilla_bootstrap: int) -> dict:
         f1s = [f1_macro(y, p) for p in preds]
         por_etiqueta = [metricas_por_etiqueta(y, p) for p in preds]
         controles = [f1_control(y, p) for p in preds]
+        cruzadas = [confusion_cruzada(y, p) for p in preds]
 
         por_arquitectura.append(
             {
@@ -134,6 +145,8 @@ def analizar(tablas, n_bootstrap: int, semilla_bootstrap: int) -> dict:
                     for etiqueta in ETIQUETAS
                 },
                 "f1_control_media": float(np.mean(controles)) if None not in controles else None,
+                "confusion_cruzada_media": _media_cruzada(cruzadas),
+                "confusion_cruzada_por_semilla": dict(zip(semillas, cruzadas)),
             }
         )
         concordancia.extend(_concordancia(arquitectura, dominio, por_semilla, n_bootstrap, semilla_bootstrap))
@@ -160,9 +173,11 @@ def analizar(tablas, n_bootstrap: int, semilla_bootstrap: int) -> dict:
                 }
             )
 
-    origen, destino = BRECHA
-    for arquitectura in ORDEN_ARQUITECTURAS:
-        if (arquitectura, origen) in tablas and (arquitectura, destino) in tablas:
+    destino = DESTINO_BRECHA
+    for origen in ORIGENES_BRECHA:
+        for arquitectura in ORDEN_ARQUITECTURAS:
+            if (arquitectura, origen) not in tablas or (arquitectura, destino) not in tablas:
+                continue
             y_o, preds_o = _todas(tablas[(arquitectura, origen)])
             y_d, preds_d = _todas(tablas[(arquitectura, destino)])
             brechas.append(
@@ -181,6 +196,18 @@ def analizar(tablas, n_bootstrap: int, semilla_bootstrap: int) -> dict:
         "brechas_dominio": brechas,
         "concordancia_severidad": concordancia,
     }
+
+
+def _media_cruzada(cruzadas: list[dict]) -> dict:
+    """Media entre semillas de cada proporción; las filas son las mismas en todas."""
+    salida = {}
+    for par in cruzadas[0]:
+        valores = [c[par]["proporcion"] for c in cruzadas]
+        salida[par] = {
+            "proporcion": float(np.mean(valores)) if None not in valores else None,
+            "filas": cruzadas[0][par]["filas"],
+        }
+    return salida
 
 
 def _todas(por_semilla):
@@ -269,6 +296,12 @@ def _marca_no_citable(r: dict) -> list[str]:
     return [f"**[NO CITABLE — {' · '.join(motivos) or 'ver advertencias'}]**", ""]
 
 
+def _celda_proporcion(datos: dict) -> str:
+    if datos["proporcion"] is None:
+        return "—"
+    return f"{datos['proporcion']:.1%} (n = {datos['filas']})"
+
+
 def _celda_prueba(prueba: dict | None) -> str:
     if not prueba or not prueba.get("prueba_usada"):
         return "— (sin variabilidad entre semillas)"
@@ -285,6 +318,8 @@ def resumen_markdown(r: dict) -> str:
     for advertencia in r.get("advertencias", []):
         lineas.append(f"> **{advertencia}**")
     lineas += ["", f"F1 macro: {r['definicion_f1_macro']}.", ""]
+    if "peso_negativo_debil" in r:
+        lineas += [f"peso_negativo_debil (w): {r['peso_negativo_debil']} (0 = pérdida enmascarada, D2).", ""]
 
     lineas += ["## PE1 — F1 macro por arquitectura", "", *_marca_no_citable(r)]
     lineas += [
@@ -307,6 +342,22 @@ def resumen_markdown(r: dict) -> str:
             "«Determinista»: todas sus semillas dan el mismo F1, así que sus corridas equivalen a una "
             "sola observación. En H1 se contrasta contra ese valor con Wilcoxon de una muestra.",
         ]
+
+    lineas += ["", "## VD1 — Confusión cruzada entre etiquetas de riesgo", "", *_marca_no_citable(r)]
+    pares = list(r["por_arquitectura"][0]["confusion_cruzada_media"]) if r["por_arquitectura"] else []
+    lineas += [
+        "| Dominio | Arquitectura | " + " | ".join(pares) + " |",
+        "|---|---|" + "---|" * len(pares),
+    ]
+    for f in r["por_arquitectura"]:
+        celdas = [_celda_proporcion(f["confusion_cruzada_media"][par]) for par in pares]
+        lineas.append(f"| {f['dominio']} | {f['arquitectura']} | " + " | ".join(celdas) + " |")
+    lineas += [
+        "",
+        "«a→b»: de los textos con a positiva y b no positiva, proporción a la que el modelo asigna "
+        "también b (media entre semillas). «control→alguna»: textos de control con alguna etiqueta "
+        "predicha. En Reddit el F1 no ve este error, porque cada etiqueta solo se compara con el control.",
+    ]
 
     lineas += ["", "## H1 — Diferencias entre arquitecturas", ""]
     if r["comparaciones_h1"]:
@@ -335,7 +386,7 @@ def resumen_markdown(r: dict) -> str:
         for b in r["brechas_dominio"]:
             lineas.append(f"- {b['arquitectura']}: {b['definicion']} = {_ic(b)}")
     else:
-        lineas.append("No disponible: requiere predicciones de MentalRiskES y del conjunto clínico.")
+        lineas.append("No disponible: requiere predicciones de redes sociales (Reddit o MentalRiskES) y del conjunto clínico.")
 
     lineas += ["", "## PE3 — Concordancia de severidad (kappa ponderado)", ""]
     if r["concordancia_severidad"]:
