@@ -66,7 +66,7 @@ class TestUmbrales:
         probabilidades = np.full((len(val), 2), 0.5)
         probabilidades[:, 0] = np.linspace(0.9, 0.95, len(val))
         umbrales = calibrar_umbrales(val, probabilidades)
-        assert umbrales["ansiedad"]["umbral"] == pytest.approx(0.05)
+        assert umbrales["ansiedad"]["umbral"] == pytest.approx(0.01)
         assert umbrales["ansiedad"]["en_borde_de_rejilla"] is True
 
     def test_un_umbral_interior_no_se_marca(self):

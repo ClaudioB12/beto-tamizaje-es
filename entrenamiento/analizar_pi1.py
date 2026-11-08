@@ -110,8 +110,22 @@ def _un_dominio(tablas: dict, n_bootstrap: int, semilla: int) -> tuple[dict, tc.
     return resultado, remuestreo, distribuciones
 
 
-def analizar(carpeta: Path, ablacion: Path | None, n_bootstrap: int, semilla: int) -> dict:
-    tablas = cargar_predicciones(carpeta)
+def cargar_varias(carpetas) -> dict:
+    """Une las predicciones de varias carpetas (p. ej., una por arquitectura
+    cuando cada una usa su propio w). Una arquitectura no puede repetirse."""
+    if isinstance(carpetas, (str, Path)):
+        carpetas = [carpetas]
+    unidas: dict = {}
+    for carpeta in carpetas:
+        for clave, por_semilla in cargar_predicciones(Path(carpeta)).items():
+            if clave in unidas:
+                raise ValueError(f"{clave} aparece en más de una carpeta de predicciones")
+            unidas[clave] = por_semilla
+    return unidas
+
+
+def analizar(carpeta, ablacion, n_bootstrap: int, semilla: int) -> dict:
+    tablas = cargar_varias(carpeta)
     resultado, remuestreo, dist = _un_dominio(tablas, n_bootstrap, semilla)
 
     comparaciones = []
@@ -140,7 +154,7 @@ def analizar(carpeta: Path, ablacion: Path | None, n_bootstrap: int, semilla: in
     }
 
     if ablacion is not None:
-        tablas_abl = cargar_predicciones(ablacion)
+        tablas_abl = cargar_varias(ablacion)
         por_arq_abl = {a: s for (a, _), s in tablas_abl.items()}
         filas = []
         for arq, por_semilla in por_arq_abl.items():
@@ -236,8 +250,9 @@ def tabla_latex(r: dict) -> str:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("--predicciones", type=Path, required=True, help="carpeta con indice.json de un dominio")
-    p.add_argument("--ablacion", type=Path, help="predicciones de reddit_enmascarado (opcional)")
+    p.add_argument("--predicciones", type=Path, nargs="+", required=True,
+                   help="una o varias carpetas con indice.json del mismo dominio (p. ej., una por arquitectura)")
+    p.add_argument("--ablacion", type=Path, nargs="+", help="predicciones de reddit_enmascarado (opcional)")
     p.add_argument("--salida", type=Path, default=registro.CARPETA_RESULTADOS / "pi1_reddit")
     p.add_argument("--bootstrap", type=int, default=N_BOOTSTRAP_PPI)
     p.add_argument("--semilla-bootstrap", type=int, default=2026)

@@ -34,7 +34,7 @@ from configuracion import cargar_config_entrenamiento
 from datos.esquema import DESCONOCIDA, ETIQUETAS
 from datos.fuentes import FUENTES
 from estadistica.metricas import confusion_cruzada, f1_macro, metricas_por_etiqueta
-from evaluacion.umbrales import aplicar_umbrales, calibrar_umbrales
+from evaluacion.umbrales import aplicar_umbrales, calibrar_umbrales, DESCRIPCION_REJILLA
 from modelos import cargar_clasificador
 
 PESOS_POR_DEFECTO = (0.0, 0.1, 0.3, 0.5, 1.0)
@@ -80,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
                 "semilla": semilla,
                 "humo": args.humo,
                 "sha256_asignaciones": sha_particion,
+                # Si cambia la rejilla de umbrales, lo medido antes no se reutiliza.
+                "rejilla_umbrales": DESCRIPCION_REJILLA,
             }
             if archivo.exists():
                 previa = registro.leer_json(archivo)

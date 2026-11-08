@@ -5,8 +5,10 @@ from sklearn.metrics import f1_score
 
 from datos.esquema import DESCONOCIDA, ETIQUETAS
 
-# De 0,05 a 0,95 en pasos de 0,01, como declara la guía de entrenamiento.
-REJILLA = np.round(np.arange(0.05, 0.9501, 0.01), 2)
+# De 0,01 a 0,99 en pasos de 0,01. Se amplió desde 0,05-0,95 porque en la
+# búsqueda de w (semilla 13) el umbral de depresión quedó en el borde.
+REJILLA = np.round(np.arange(0.01, 0.9901, 0.01), 2)
+DESCRIPCION_REJILLA = "0.01-0.99 paso 0.01"
 
 
 def calibrar_umbrales(val: pd.DataFrame, probabilidades: np.ndarray) -> dict[str, dict]:
