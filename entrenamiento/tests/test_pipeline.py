@@ -271,6 +271,23 @@ class TestBuscarPeso:
         assert buscar_peso.main(argumentos) == 0
         assert capsys.readouterr().out.count("ya medida") == 2
 
+    def test_repite_si_cambian_los_hiperparametros(self, tmp_path, config_diminuta, capsys):
+        argumentos = self._argumentos(tmp_path, config_diminuta, "--pesos", "0", "--arquitecturas", "tfidf_lr")
+        assert buscar_peso.main(argumentos) == 0
+        archivo = tmp_path / "res" / "sintetico" / "por_corrida" / "tfidf_lr-w0.json"
+        previa = registro.leer_json(archivo)
+        assert len(previa["sha256_config"]) == 64
+        # Huella distinta (otros hiperparámetros): no se reutiliza.
+        registro.escribir_json(archivo, {**previa, "sha256_config": "0" * 64})
+        capsys.readouterr()
+        assert buscar_peso.main(argumentos) == 0
+        assert "otra configuración, se repite" in capsys.readouterr().out
+        # Registro anterior a la huella: se reutiliza con aviso.
+        previa = registro.leer_json(archivo)
+        registro.escribir_json(archivo, {k: v for k, v in previa.items() if k != "sha256_config"})
+        assert buscar_peso.main(argumentos) == 0
+        assert "sin huella de configuración" in capsys.readouterr().out
+
     def test_rechaza_pesos_fuera_de_0_1_y_semillas_no_declaradas(self, tmp_path, config_diminuta):
         assert buscar_peso.main(self._argumentos(tmp_path, config_diminuta, "--pesos", "1.5")) == 2
         assert buscar_peso.main(self._argumentos(tmp_path, config_diminuta, "--semilla", "7")) == 2

@@ -21,6 +21,7 @@ No elige w: entrega la tabla para que la decisión la tome el equipo. Los
 modelos no se guardan; solo sus métricas.
 """
 import argparse
+import dataclasses
 import shutil
 import sys
 from pathlib import Path
@@ -41,6 +42,11 @@ PESOS_POR_DEFECTO = (0.0, 0.1, 0.3, 0.5, 1.0)
 ARQUITECTURAS_POR_DEFECTO = ("beto_ajustado", "tfidf_lr")
 CARPETA_BUSQUEDA = registro.CARPETA_RESULTADOS / "busqueda_peso"
 CARPETA_TRABAJO = registro.CARPETA_CORRIDAS / "busqueda_peso"
+
+
+def huella_config(config) -> str:
+    """Hash de todos los hiperparámetros salvo w (que ya va en la identidad)."""
+    return registro.sha256_json(dataclasses.asdict(config.con_peso_negativo_debil(0.0)))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     if sin_desconocidas:
         print(f"AVISO: {args.fuente} no tiene etiquetas desconocidas en entrenamiento; w no cambia nada.")
 
+    huella = huella_config(config)
     filas = []
     for arquitectura in args.arquitecturas:
         for peso in pesos:
@@ -85,8 +92,14 @@ def main(argv: list[str] | None = None) -> int:
             }
             if archivo.exists():
                 previa = registro.leer_json(archivo)
-                if all(previa.get(clave) == valor for clave, valor in identidad.items()):
-                    print(f"= {nombre}: ya medida, se reutiliza")
+                misma_config = previa.get("sha256_config", huella) == huella
+                if misma_config and all(previa.get(clave) == valor for clave, valor in identidad.items()):
+                    if "sha256_config" not in previa:
+                        # Medida antes de existir la huella: se reutiliza (misma partición, semilla,
+                        # w y rejilla), pero se avisa para que quede documentado.
+                        print(f"= {nombre}: ya medida (sin huella de configuración), se reutiliza")
+                    else:
+                        print(f"= {nombre}: ya medida, se reutiliza")
                     filas.append(previa)
                     continue
                 print(f"~ {nombre}: medida con otra configuración, se repite")
@@ -104,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.fuente,
                 args.humo,
             )
-            fila = {**identidad, **medir_en_validacion(carpeta / "modelo", particion.val)}
+            fila = {**identidad, "sha256_config": huella, **medir_en_validacion(carpeta / "modelo", particion.val)}
             fila["mejor_eval_loss"] = manifiesto["mejor_eval_loss"]
             fila["duracion_s"] = manifiesto["duracion_s"]
             shutil.rmtree(carpeta, ignore_errors=True)
