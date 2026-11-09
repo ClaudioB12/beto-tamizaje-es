@@ -64,8 +64,14 @@ def _secundarias(tabla) -> dict:
             "especificidad": tn / (tn + fp) if tn + fp else None,
             "auroc": auroc,
         }
+    # Asignación cruzada C(a→b): entre publicaciones con a observada positiva (y b no
+    # positiva), proporción con b predicha, haya o no predicho a. No es «ambas etiquetas».
     cruzada = confusion_cruzada(y, pred)
-    salida["doble_asignacion"] = {k: v["proporcion"] for k, v in cruzada.items()}
+    salida["asignacion_cruzada"] = {k: v["proporcion"] for k, v in cruzada.items()}
+    # Predicción simultánea B: entre publicaciones de riesgo (alguna etiqueta observada
+    # positiva), proporción con AMBAS etiquetas predichas.
+    riesgo = (y == 1).any(axis=1)
+    salida["ambas_predichas"] = float((pred[riesgo] == 1).all(axis=1).mean()) if riesgo.any() else None
     salida["f1_macro_enmascarado"] = f1_macro(y, pred)
     return salida
 
@@ -77,8 +83,9 @@ def _resumir_secundarias(por_semilla: list[dict]) -> dict:
             m: _media_de(s[etiqueta][m] for s in por_semilla)
             for m in ("f1", "sensibilidad", "especificidad", "auroc")
         }
-    claves = por_semilla[0]["doble_asignacion"].keys()
-    salida["doble_asignacion"] = {k: _media_de(s["doble_asignacion"][k] for s in por_semilla) for k in claves}
+    claves = por_semilla[0]["asignacion_cruzada"].keys()
+    salida["asignacion_cruzada"] = {k: _media_de(s["asignacion_cruzada"][k] for s in por_semilla) for k in claves}
+    salida["ambas_predichas"] = _media_de(s["ambas_predichas"] for s in por_semilla)
     salida["f1_macro_enmascarado"] = _media_de(s["f1_macro_enmascarado"] for s in por_semilla)
     return salida
 
@@ -138,7 +145,9 @@ def analizar(carpeta, ablacion, n_bootstrap: int, semilla: int) -> dict:
                 - resultado[b]["macro_f1_tres_clases"]["media_semillas"]
             )
             comparaciones.append(
-                {"a": a, "b": b, "diferencia": estimacion, "ic95": [inf, sup], "excluye_cero": inf > 0 or sup < 0}
+                {"a": a, "b": b, "diferencia": estimacion, "ic95": [inf, sup],
+                 # H1 es direccional: D = F1(a) − F1(b) y se exige límite inferior > 0.
+                 "limite_inferior_positivo": inf > 0}
             )
 
     salida = {
@@ -149,7 +158,7 @@ def analizar(carpeta, ablacion, n_bootstrap: int, semilla: int) -> dict:
         "casos_doble_etiqueta_excluidos": remuestreo.n_dobles,
         "por_arquitectura": resultado,
         "comparaciones_h1": comparaciones,
-        "h1_parte_reddit": bool(comparaciones) and all(c["excluye_cero"] and c["diferencia"] > 0 for c in comparaciones),
+        "h1_parte_reddit": bool(comparaciones) and all(c["limite_inferior_positivo"] for c in comparaciones),
         "ablacion": None,
     }
 
@@ -192,22 +201,23 @@ def resumen_markdown(r: dict) -> str:
         f"- {r['fragmentos']} publicaciones de {r['sujetos']} sujetos; bootstrap por sujeto, "
         f"{r['bootstrap']['n']} réplicas (semilla {r['bootstrap']['semilla']}).",
         "",
-        "| Modelo | Macro-F1 (media de semillas) [IC 95 %] | DE entre semillas | Macro-F1 enmascarado | Ans.→Dep. (%) | Dep.→Ans. (%) | Control→alguna (%) |",
-        "|---|---|---|---|---|---|---|",
+        "| Modelo | Macro-F1 (media de semillas) [IC 95 %] | DE entre semillas | Macro-F1 enmascarado | Cruzada Ans.→Dep. (%) | Cruzada Dep.→Ans. (%) | Ambas predichas (%) | Control→alguna (%) |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for arq, x in r["por_arquitectura"].items():
         m, s = x["macro_f1_tres_clases"], x["secundarias"]
-        da = s["doble_asignacion"]
+        da = s["asignacion_cruzada"]
         l.append(
             f"| {NOMBRES[arq]} | {_f(m['media_semillas'])} [{_f(m['ic95'][0])}, {_f(m['ic95'][1])}] | "
             f"{_f(m['de_semillas'])} | {_f(s['f1_macro_enmascarado']['media'])} | "
-            f"{_pct(da['ansiedad→depresion'])} | {_pct(da['depresion→ansiedad'])} | {_pct(da['control→alguna'])} |"
+            f"{_pct(da['ansiedad→depresion'])} | {_pct(da['depresion→ansiedad'])} | {_pct(s['ambas_predichas'])} | "
+            f"{_pct(da['control→alguna'])} |"
         )
     l += ["", "## Diferencias pareadas (H1, parte Reddit)", ""]
     for c in r["comparaciones_h1"]:
         l.append(
             f"- {NOMBRES[c['a']]} − {NOMBRES[c['b']]}: {_f(c['diferencia'])} "
-            f"[{_f(c['ic95'][0])}, {_f(c['ic95'][1])}]; excluye 0: {'sí' if c['excluye_cero'] else 'no'}"
+            f"[{_f(c['ic95'][0])}, {_f(c['ic95'][1])}]; límite inferior > 0: {'sí' if c['limite_inferior_positivo'] else 'no'}"
         )
     l.append(f"- Parte Reddit de H1 {'se cumple' if r['h1_parte_reddit'] else 'no se cumple'} "
              "(falta la parte clínica de la prueba de intersección-unión).")
@@ -233,7 +243,7 @@ def resumen_markdown(r: dict) -> str:
 def tabla_latex(r: dict) -> str:
     filas = []
     for arq, x in r["por_arquitectura"].items():
-        m, da = x["macro_f1_tres_clases"], x["secundarias"]["doble_asignacion"]
+        m, da = x["macro_f1_tres_clases"], x["secundarias"]["asignacion_cruzada"]
         filas.append(
             f"{NOMBRES[arq]} & {m['media_semillas']:.3f} [{m['ic95'][0]:.3f}, {m['ic95'][1]:.3f}] & "
             f"{m['de_semillas']:.3f} & {100 * da['ansiedad→depresion']['media']:.1f}\\% & "

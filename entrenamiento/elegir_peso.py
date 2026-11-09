@@ -3,13 +3,21 @@
 Lee los ``tabla.csv`` que deja ``buscar_peso.py`` (uno por semilla, todos con
 la misma rejilla de umbrales) y, por arquitectura, promedia entre semillas:
 - macro-F1 de validación (la columna ``f1_macro`` de buscar_peso);
-- doble asignación: media de «ansiedad→depresion» y «depresion→ansiedad»;
+- asignación cruzada: media de «ansiedad→depresion» y «depresion→ansiedad»
+  (entre publicaciones de una clase de riesgo, proporción con la OTRA etiqueta
+  predicha; no exige que también se haya predicho la propia);
 - proporción de controles con alguna etiqueta («control→alguna»).
 
 Regla, fijada antes de ver los resultados: entre los w que pierden como mucho
 0,01 de macro-F1 respecto de w = 0 y marcan como mucho el 10 % de los controles,
-se elige el de menor doble asignación media (empate: el w menor). Como w = 0
-cumple siempre ambas condiciones, la regla siempre da un resultado.
+se elige el de menor asignación cruzada media (empate: el w menor). Como w = 0
+cumple siempre ambas condiciones, la regla siempre da un resultado. La métrica
+de la restricción es el macro-F1 ENMASCARADO de validación (columna f1_macro de
+buscar_peso), no el macro-F1 de tres clases, que es la métrica principal de la
+prueba. Todo se calcula con los valores sin redondear de tabla.csv.
+
+Además escribe el cumplimiento POR SEMILLA (pérdida frente a w = 0 de la misma
+semilla y controles marcados). Es descriptivo: la regla se aplica a las medias.
 
 No decide nada por sí solo: deja la tabla y la propuesta para el asesor.
 
@@ -62,6 +70,17 @@ def resumir(datos: pd.DataFrame) -> pd.DataFrame:
     return r.sort_values(["arquitectura", "w"]).reset_index(drop=True)
 
 
+def por_semilla(datos: pd.DataFrame) -> pd.DataFrame:
+    """Cumplimiento descriptivo de cada restricción en cada semilla."""
+    d = datos.copy()
+    base = d[d["w"] == 0].set_index(["arquitectura", "tabla"])["f1_macro"]
+    d["perdida_vs_w0"] = d["f1_macro"] - [base[(a, t)] for a, t in zip(d["arquitectura"], d["tabla"])]
+    d["cumple_perdida"] = d["perdida_vs_w0"].mul(-1) <= PERDIDA_MAXIMA + _TOL
+    d["cumple_controles"] = d["control→alguna"] <= CONTROLES_MAXIMOS + _TOL
+    cols = ["arquitectura", "w", "tabla", "f1_macro", "perdida_vs_w0", "cumple_perdida", "control→alguna", "cumple_controles"]
+    return d[cols].sort_values(["arquitectura", "w", "tabla"]).reset_index(drop=True)
+
+
 def elegir(resumen: pd.DataFrame) -> dict:
     eleccion = {}
     for arq, t in resumen.groupby("arquitectura"):
@@ -83,8 +102,9 @@ def elegir(resumen: pd.DataFrame) -> dict:
 def resumen_markdown(resumen: pd.DataFrame, eleccion: dict) -> str:
     L = ["# Elección de w (validación, media de semillas)", "",
          f"Regla: pérdida de macro-F1 ≤ {PERDIDA_MAXIMA} frente a w = 0 y controles marcados ≤ {CONTROLES_MAXIMOS:.0%}; "
-         "entre los que cumplen, menor doble asignación (empate: w menor).", "",
-         "| Arquitectura | w | Semillas | Macro-F1 (media ± DE) | Pérdida vs. w=0 | Doble asignación (media ± DE) | Controles marcados | Cumple |",
+         "entre los que cumplen, menor asignación cruzada media (empate: w menor). Macro-F1 = enmascarado, en validación; "
+         "medias calculadas sin redondear.", "",
+         "| Arquitectura | w | Semillas | Macro-F1 (media ± DE) | Pérdida vs. w=0 | Asignación cruzada (media ± DE) | Controles marcados | Cumple |",
          "|---|---|---|---|---|---|---|---|"]
     for _, f in resumen.iterrows():
         de = lambda x: "—" if pd.isna(x) else f"{x:.3f}"
@@ -94,11 +114,27 @@ def resumen_markdown(resumen: pd.DataFrame, eleccion: dict) -> str:
     L += ["", "## Propuesta para el asesor", ""]
     for arq, e in eleccion.items():
         extra = " (solo cumple w = 0: reportar la doble asignación como limitación)" if e["solo_cumple_w0"] else ""
-        L.append(f"- **{arq}: w = {e['w']:g}**{extra}; doble asignación {100*e['doble_asignacion_media']:.1f} %, "
+        L.append(f"- **{arq}: w = {e['w']:g}**{extra}; asignación cruzada {100*e['doble_asignacion_media']:.1f} %, "
                  f"pérdida {e['perdida_vs_w0']:+.3f}, controles {100*e['controles_marcados']:.1f} %.")
     if "semillas_con_umbral_en_borde" in resumen.columns and resumen["semillas_con_umbral_en_borde"].gt(0).any():
         L += ["", "Atención: hay combinaciones con algún umbral en el borde de la rejilla "
               "(columna «semillas_con_umbral_en_borde» de resumen.csv)."]
+    return "\n".join(L) + "\n"
+
+
+def _etiqueta_tabla(ruta: str) -> str:
+    """«s13» si la ruta contiene una carpeta de semilla; si no, el nombre del archivo."""
+    partes = Path(ruta).parts
+    return next((p for p in partes if p[:1] == "s" and p[1:].isdigit()), Path(ruta).stem)
+
+
+def markdown_por_semilla(semillas: pd.DataFrame, eleccion: dict) -> str:
+    L = ["", "## Cumplimiento por semilla del w propuesto (descriptivo; la regla usa las medias)", "",
+         "| Arquitectura | w | Tabla | Macro-F1 | Pérdida vs. w=0 | ¿≤ 0,01? | Controles | ¿≤ 10 %? |", "|---|---|---|---|---|---|---|---|"]
+    for arq, e in eleccion.items():
+        for _, f in semillas[(semillas["arquitectura"] == arq) & (semillas["w"] == e["w"])].iterrows():
+            L.append(f"| {arq} | {f['w']:g} | {_etiqueta_tabla(f['tabla'])} | {f['f1_macro']:.4f} | {f['perdida_vs_w0']:+.4f} | "
+                     f"{'sí' if f['cumple_perdida'] else 'no'} | {100*f['control→alguna']:.1f} % | {'sí' if f['cumple_controles'] else 'no'} |")
     return "\n".join(L) + "\n"
 
 
@@ -107,12 +143,15 @@ def main(argv=None) -> int:
     ap.add_argument("--tablas", nargs="+", type=Path, required=True)
     ap.add_argument("--salida", type=Path, required=True)
     a = ap.parse_args(argv)
-    resumen = resumir(cargar(a.tablas))
+    datos = cargar(a.tablas)
+    resumen = resumir(datos)
+    semillas = por_semilla(datos)
     eleccion = elegir(resumen)
     a.salida.mkdir(parents=True, exist_ok=True)
     resumen.to_csv(a.salida / "resumen.csv", index=False)
+    semillas.to_csv(a.salida / "por_semilla.csv", index=False)
     (a.salida / "eleccion.json").write_text(json.dumps(eleccion, ensure_ascii=False, indent=2), encoding="utf-8")
-    md = resumen_markdown(resumen, eleccion)
+    md = resumen_markdown(resumen, eleccion) + markdown_por_semilla(semillas, eleccion)
     (a.salida / "resumen.md").write_text(md, encoding="utf-8")
     print(md)
     return 0

@@ -30,6 +30,11 @@ def test_regla_de_w_elige_menor_doble_asignacion_que_cumple(tmp_path):
     assert eleccion["beto_ajustado"]["w"] == pytest.approx(0.3)
     assert eleccion["tfidf_lr"]["w"] == 0 and eleccion["tfidf_lr"]["solo_cumple_w0"] is True
     assert "w = 0.3" in elegir_peso.resumen_markdown(resumen, eleccion)
+    # Cumplimiento por semilla: descriptivo, con la pérdida frente a w = 0 de la misma semilla.
+    semillas = elegir_peso.por_semilla(elegir_peso.cargar(rutas))
+    fila = semillas[(semillas.arquitectura == "beto_ajustado") & (semillas.w == 0.5)].iloc[0]
+    assert fila["perdida_vs_w0"] == pytest.approx(-0.014) and not fila["cumple_perdida"]
+    assert "Cumplimiento por semilla" in elegir_peso.markdown_por_semilla(semillas, eleccion)
 
 
 def test_desglose_por_calidad_de_traduccion(tmp_path):

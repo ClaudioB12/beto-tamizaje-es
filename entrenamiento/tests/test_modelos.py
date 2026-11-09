@@ -295,21 +295,22 @@ class TestEntrenamientoBeto:
         from modelos.beto import ClasificadorBeto
 
         clasificador = ClasificadorBeto("beto_sonda", 13, hiper).construir()
-        codificador_antes = clasificador.modelo.base_model.embeddings.word_embeddings.weight.clone()
-        cabeza_antes = clasificador.modelo.classifier.weight.clone()
+        # Se compara en CPU: tras entrenar, el modelo puede quedar en la GPU.
+        codificador_antes = clasificador.modelo.base_model.embeddings.word_embeddings.weight.detach().cpu().clone()
+        cabeza_antes = clasificador.modelo.classifier.weight.detach().cpu().clone()
 
         clasificador.entrenar(*datos_pequenos, carpeta_trabajo=tmp_path)
 
-        assert torch.equal(clasificador.modelo.base_model.embeddings.word_embeddings.weight, codificador_antes)
-        assert not torch.equal(clasificador.modelo.classifier.weight, cabeza_antes)
+        assert torch.equal(clasificador.modelo.base_model.embeddings.word_embeddings.weight.detach().cpu(), codificador_antes)
+        assert not torch.equal(clasificador.modelo.classifier.weight.detach().cpu(), cabeza_antes)
 
     def test_el_ajuste_fino_si_modifica_el_codificador(self, hiper, datos_pequenos, tmp_path):
         from modelos.beto import ClasificadorBeto
 
         clasificador = ClasificadorBeto("beto_ajustado", 13, hiper).construir()
-        antes = clasificador.modelo.base_model.encoder.layer[0].attention.self.query.weight.clone()
+        antes = clasificador.modelo.base_model.encoder.layer[0].attention.self.query.weight.detach().cpu().clone()
         clasificador.entrenar(*datos_pequenos, carpeta_trabajo=tmp_path)
-        assert not torch.equal(clasificador.modelo.base_model.encoder.layer[0].attention.self.query.weight, antes)
+        assert not torch.equal(clasificador.modelo.base_model.encoder.layer[0].attention.self.query.weight.detach().cpu(), antes)
 
     @pytest.mark.parametrize("arquitectura", ["beto_ajustado", "beto_sonda"])
     def test_entrena_de_punta_a_punta_con_etiquetas_desconocidas(self, hiper, datos_pequenos, tmp_path, arquitectura):

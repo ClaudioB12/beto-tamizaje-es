@@ -57,6 +57,15 @@ def test_macro_f1_coincide_con_sklearn_y_excluye_dobles():
     assert tc.macro_f1(con_doble) == pytest.approx(esperado)
 
 
+def test_ambas_predichas_difiere_de_asignacion_cruzada():
+    # Publicación de ansiedad a la que solo se predice depresión: cuenta como asignación
+    # cruzada (ansiedad→depresión) pero NO como «ambas predichas».
+    t = _tabla([1], [-1], [0.1], [0.9])
+    s = analizar_pi1._secundarias(t)
+    assert s["asignacion_cruzada"]["ansiedad→depresion"] == 1.0
+    assert s["ambas_predichas"] == 0.0
+
+
 def test_bootstrap_por_sujeto_contiene_la_estimacion_y_es_pareado():
     rng = np.random.default_rng(1)
     n = 400
@@ -124,6 +133,10 @@ def test_analisis_completo_con_ablacion(tmp_path):
     lp = r["por_arquitectura"]["beto_sonda"]["macro_f1_tres_clases"]
     assert ft["media_semillas"] > lp["media_semillas"]
     assert r["h1_parte_reddit"] is True
+    assert all(c["limite_inferior_positivo"] for c in r["comparaciones_h1"])
+    # «Ambas predichas» no es la asignación cruzada: está entre 0 y 1 y se reporta aparte.
+    ambas = r["por_arquitectura"]["beto_ajustado"]["secundarias"]["ambas_predichas"]["media"]
+    assert 0 <= ambas <= 1
     assert r["ablacion"][0]["diferencia_original_menos_ablacion"] > 0
     assert "BETO-FT" in analizar_pi1.resumen_markdown(r)
     assert "\\begin{tabular}" in analizar_pi1.tabla_latex(r)
