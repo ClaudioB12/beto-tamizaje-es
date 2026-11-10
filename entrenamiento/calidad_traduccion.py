@@ -2,9 +2,10 @@
 
 Cada evaluador completa su copia de ``muestra_calidad.csv`` (la que deja
 ``traducir_reddit.py``), con las columnas ``adecuacion_1a5``, ``fluidez_1a5``,
-``senal_salud_mental_1a5`` y ``aceptable_si_no``. Si se añade la columna
-``inversion_polaridad_si_no`` (sí cuando la traducción invierte el sentido
-clínico, p. ej., «no estoy deprimido» → «estoy deprimido»), también se cuenta.
+``senal_salud_mental_1a5``, ``aceptable_si_no`` e ``inversion_polaridad_si_no``
+(sí cuando la traducción invierte el sentido clínico, p. ej., «no estoy
+deprimido» → «estoy deprimido»). La polaridad es OBLIGATORIA: el paper exige
+ninguna inversión, y sin esa columna el criterio no puede comprobarse.
 
 Calcula:
 - κ de Cohen con ponderación cuadrática para cada criterio de 1 a 5;
@@ -50,7 +51,11 @@ def comparar(e1: pd.DataFrame, e2: pd.DataFrame) -> dict:
     if set(e1["fragmento_id"]) != set(e2["fragmento_id"]):
         raise ValueError("Los dos archivos no tienen los mismos pares (fragmento_id).")
     d = e1.merge(e2, on="fragmento_id", suffixes=("_1", "_2"))
-    faltan = [c for c in CRITERIOS + ("aceptable_si_no",) for k in ("_1", "_2") if d[c + k].isna().any()]
+    obligatorias = CRITERIOS + ("aceptable_si_no", "inversion_polaridad_si_no")
+    ausentes = [f"{c} (evaluador {i})" for i, e in ((1, e1), (2, e2)) for c in obligatorias if c not in e.columns]
+    if ausentes:
+        raise ValueError(f"Faltan columnas obligatorias: {ausentes}")
+    faltan = [c for c in obligatorias for k in ("_1", "_2") if d[c + k].isna().any()]
     if faltan:
         raise ValueError(f"Hay celdas vacías en: {sorted(set(faltan))}")
     r = {"pares": len(d), "kappa": {}}
@@ -61,11 +66,8 @@ def comparar(e1: pd.DataFrame, e2: pd.DataFrame) -> dict:
     r["kappa"]["aceptable"] = float(cohen_kappa_score(a1, a2))
     r["aceptables"] = {"evaluador1": float(a1.mean()), "evaluador2": float(a2.mean()), "ambos": float((a1 & a2).mean())}
     r["desacuerdos_aceptable"] = d.loc[a1 != a2, "fragmento_id"].tolist()
-    if "inversion_polaridad_si_no_1" in d and "inversion_polaridad_si_no_2" in d:
-        inv = _si(d["inversion_polaridad_si_no_1"]) | _si(d["inversion_polaridad_si_no_2"])
-        r["inversiones_polaridad"] = d.loc[inv, "fragmento_id"].tolist()
-    else:
-        r["inversiones_polaridad"] = None
+    inv = _si(d["inversion_polaridad_si_no_1"]) | _si(d["inversion_polaridad_si_no_2"])
+    r["inversiones_polaridad"] = d.loc[inv, "fragmento_id"].tolist()
     return r
 
 
@@ -78,11 +80,8 @@ def resumen_markdown(r: dict) -> str:
           f"según ambos: {a['ambos']:.1%}.",
           f"- Pares en desacuerdo sobre «aceptable» ({len(r['desacuerdos_aceptable'])}), a resolver por consenso: "
           + (", ".join(r["desacuerdos_aceptable"]) or "ninguno") + "."]
-    if r["inversiones_polaridad"] is None:
-        L.append("- No se registró la columna inversion_polaridad_si_no: revisar las inversiones en los comentarios.")
-    else:
-        L.append(f"- Inversiones de polaridad: {len(r['inversiones_polaridad'])}"
-                 + (f" ({', '.join(r['inversiones_polaridad'])})" if r["inversiones_polaridad"] else "") + ".")
+    L.append(f"- Inversiones de polaridad: {len(r['inversiones_polaridad'])}"
+             + (f" ({', '.join(r['inversiones_polaridad'])})" if r["inversiones_polaridad"] else "") + ".")
     L += ["", "Criterio del paper: ≥ 90 % de pares aceptables por consenso y ninguna inversión de polaridad. "
           "«Según ambos» es una cota inferior del consenso."]
     return "\n".join(L) + "\n"

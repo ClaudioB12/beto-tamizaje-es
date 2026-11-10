@@ -197,7 +197,8 @@ def muestra_estratificada(df: pd.DataFrame, n: int, semilla: int, max_palabras: 
             "texto_es": muestra["texto_es"],
         }
     ).reset_index(drop=True)
-    for criterio in ("adecuacion_1a5", "fluidez_1a5", "senal_salud_mental_1a5", "aceptable_si_no", "evaluador", "comentario"):
+    for criterio in ("adecuacion_1a5", "fluidez_1a5", "senal_salud_mental_1a5", "aceptable_si_no",
+                    "inversion_polaridad_si_no", "evaluador", "comentario"):
         salida[criterio] = ""
     return salida
 

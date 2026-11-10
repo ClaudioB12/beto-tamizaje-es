@@ -65,12 +65,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     entorno = registro.describir_entorno()
     print(f"peso_negativo_debil = {config.peso_negativo_debil}", flush=True)
+    huella = registro.sha256_json(asdict(config))
 
     for arquitectura in arquitecturas:
         for semilla in semillas:
             carpeta = raiz / f"{arquitectura}-s{semilla}"
             if (carpeta / "manifiesto.json").exists():
-                print(f"= {carpeta.name}: completa, se salta")
+                previa = registro.leer_json(carpeta / "manifiesto.json").get("config_sha256")
+                if previa is not None and previa != huella:
+                    print(
+                        f"{carpeta.name} ya está completa pero con otra configuración "
+                        f"(config_sha256 {previa[:12]}… ≠ {huella[:12]}…). No se reutiliza ni se "
+                        "sobrescribe: usa otra carpeta con --corridas.",
+                        file=sys.stderr,
+                    )
+                    return 2
+                print(f"= {carpeta.name}: completa con la misma configuración, se salta")
                 continue
             if carpeta.exists():
                 print(f"~ {carpeta.name}: interrumpida, se borra y se repite")
