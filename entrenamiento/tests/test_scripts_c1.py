@@ -63,7 +63,9 @@ def test_calidad_traduccion_kappa_y_desacuerdos():
                          "adecuacion_1a5": [5, 4, 3, 5, 2, 4], "fluidez_1a5": [5, 4, 4, 5, 3, 4],
                          "senal_salud_mental_1a5": [5, 5, 4, 5, 2, 4],
                          "aceptable_si_no": ["sí", "sí", "sí", "sí", "no", "sí"]})
+    base["evaluador"] = "Ana"
     otro = base.copy()
+    otro["evaluador"] = "Luis"
     otro.loc[2, "aceptable_si_no"] = "no"
     otro["inversion_polaridad_si_no"] = ["no", "no", "no", "no", "sí", "no"]
     base["inversion_polaridad_si_no"] = "no"
@@ -71,3 +73,18 @@ def test_calidad_traduccion_kappa_y_desacuerdos():
     assert r["kappa"]["adecuacion_1a5"] == pytest.approx(1.0)
     assert r["desacuerdos_aceptable"] == ["r2"] and r["inversiones_polaridad"] == ["r4"]
     assert r["aceptables"]["ambos"] == pytest.approx(4 / 6)
+
+
+def test_calidad_rechaza_revisar_ia_y_mismo_evaluador():
+    base = pd.DataFrame({"fragmento_id": ["r0", "r1"], "adecuacion_1a5": [5, 4], "fluidez_1a5": [5, 4],
+                         "senal_salud_mental_1a5": [5, 4], "aceptable_si_no": ["sí", "sí"],
+                         "inversion_polaridad_si_no": ["no", "no"], "evaluador": "Ana"})
+    otro = base.assign(evaluador="Luis")
+    with pytest.raises(ValueError, match="fuera de escala"):
+        calidad_traduccion.comparar(base.assign(aceptable_si_no=["sí", "revisar"]), otro)
+    with pytest.raises(ValueError, match="pre-revisión"):
+        calidad_traduccion.comparar(base.assign(IA_sugerencia_aceptable="sí"), otro)
+    with pytest.raises(ValueError, match="mismo evaluador"):
+        calidad_traduccion.comparar(base, base.copy())
+    r = calidad_traduccion.comparar(base, otro)
+    assert r["evaluadores"][1]["evaluador"] == "Luis" and r["momento"] == "acuerdo previo al consenso"
