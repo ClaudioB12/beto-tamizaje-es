@@ -41,10 +41,20 @@ COLUMNAS_TRADUCIDAS = ("fragmento_id", "sujeto_id", "subreddit", "fecha", "etiqu
 
 # Términos que nombran la etiqueta en el texto traducido (fuga léxica). La
 # variante enmascarada permite la ablación con y sin ellos.
-_TERMINOS_ETIQUETA = re.compile(
-    r"\b(depresi\w*|deprimid\w*|ansiedad\w*|ansios\w*|p[aá]nico\w*|r/\w+)",
-    flags=re.IGNORECASE,
-)
+RUTA_TERMINOS = Path(__file__).resolve().parent.parent / "config" / "terminos_etiqueta.txt"
+
+
+def cargar_terminos(ruta: Path | str = RUTA_TERMINOS) -> re.Pattern:
+    """Une las expresiones de config/terminos_etiqueta.txt (una por línea; # comenta)."""
+    lineas = []
+    for linea in Path(ruta).read_text(encoding="utf-8").splitlines():
+        expresion = linea.split("#", 1)[0].strip()
+        if expresion:
+            lineas.append(f"(?:{expresion})")
+    return re.compile("|".join(lineas), flags=re.IGNORECASE)
+
+
+_TERMINOS_ETIQUETA = cargar_terminos()
 MASCARA = "[MASK]"
 
 # Unas pocas publicaciones de los subreddits están en otro idioma (p. ej. chino).

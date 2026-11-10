@@ -9,6 +9,7 @@ Para cada corrida, en este orden y sin ajustar nada del modelo:
     1. calibra un umbral por etiqueta en VALIDACIÓN -> corrida/umbrales.json
     2. mide la confusión cruzada en VALIDACIÓN      -> indice.json (diagnóstico)
     3. predice PRUEBA con esos umbrales            -> predicciones/<experimento>/<corrida>-<dominio>.csv
+       (y guarda VALIDACIÓN                         -> predicciones/<experimento>/validacion/...)
     4. si se pasan bandas congeladas (D4), asigna severidad
 
 predicciones/<experimento>/indice.json registra el hash de cada archivo; analizar.py
@@ -81,6 +82,11 @@ def main(argv: list[str] | None = None) -> int:
             particion.test, clasificador.predecir_probabilidades(particion.test), umbrales, bandas
         )
         nombre = f"{manifiesto['arquitectura']}-s{manifiesto['semilla']}-{dominio}.csv"
+        # Probabilidades de VALIDACIÓN, para auditar umbrales y análisis futuros sin tocar la prueba.
+        tabla_val = construir_predicciones(particion.val, probabilidades_val, umbrales, bandas)
+        (salida / "validacion").mkdir(exist_ok=True)
+        contenido_val = tabla_val.to_csv(index=False, lineterminator="\n").encode("utf-8")
+        (salida / "validacion" / nombre).write_bytes(contenido_val)
         contenido = tabla.to_csv(index=False, lineterminator="\n").encode("utf-8")
         (salida / nombre).write_bytes(contenido)
 
@@ -94,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
                 "umbrales": {etiqueta: datos["umbral"] for etiqueta, datos in umbrales.items()},
                 "peso_negativo_debil": float(manifiesto["hiperparametros"].get("peso_negativo_debil", 0.0)),
                 "confusion_cruzada_validacion": cruzada_val,
+                "validacion": {"archivo": f"validacion/{nombre}", "sha256": registro.sha256_bytes(contenido_val)},
             }
         )
         print(f"  {nombre}: {len(tabla)} fragmentos, umbrales {indice['archivos'][-1]['umbrales']}")

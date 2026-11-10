@@ -134,6 +134,7 @@ def cargar_varias(carpetas) -> dict:
 def analizar(carpeta, ablacion, n_bootstrap: int, semilla: int) -> dict:
     tablas = cargar_varias(carpeta)
     resultado, remuestreo, dist = _un_dominio(tablas, n_bootstrap, semilla)
+    por_arq = {a: s for (a, _), s in tablas.items()}
 
     comparaciones = []
     for a, b in COMPARACIONES:
@@ -144,10 +145,15 @@ def analizar(carpeta, ablacion, n_bootstrap: int, semilla: int) -> dict:
                 resultado[a]["macro_f1_tres_clases"]["media_semillas"]
                 - resultado[b]["macro_f1_tres_clases"]["media_semillas"]
             )
+            dj = remuestreo.distribucion_jerarquica(por_arq[a]) - remuestreo.distribucion_jerarquica(por_arq[b])
+            inf_j, sup_j = tc.intervalo(dj)
             comparaciones.append(
                 {"a": a, "b": b, "diferencia": estimacion, "ic95": [inf, sup],
                  # H1 es direccional: D = F1(a) − F1(b) y se exige límite inferior > 0.
-                 "limite_inferior_positivo": inf > 0}
+                 "limite_inferior_positivo": inf > 0,
+                 # Sensibilidad: bootstrap jerárquico (semillas y luego sujetos).
+                 "ic95_jerarquico": [inf_j, sup_j],
+                 "limite_inferior_positivo_jerarquico": inf_j > 0}
             )
 
     salida = {
@@ -217,7 +223,9 @@ def resumen_markdown(r: dict) -> str:
     for c in r["comparaciones_h1"]:
         l.append(
             f"- {NOMBRES[c['a']]} − {NOMBRES[c['b']]}: {_f(c['diferencia'])} "
-            f"[{_f(c['ic95'][0])}, {_f(c['ic95'][1])}]; límite inferior > 0: {'sí' if c['limite_inferior_positivo'] else 'no'}"
+            f"[{_f(c['ic95'][0])}, {_f(c['ic95'][1])}]; límite inferior > 0: {'sí' if c['limite_inferior_positivo'] else 'no'} "
+            f"(a: protocolo, semillas promediadas) · jerárquico [{_f(c['ic95_jerarquico'][0])}, {_f(c['ic95_jerarquico'][1])}]; "
+            f"límite inferior > 0: {'sí' if c['limite_inferior_positivo_jerarquico'] else 'no'} (b: sensibilidad)"
         )
     l.append(f"- Parte Reddit de H1 {'se cumple' if r['h1_parte_reddit'] else 'no se cumple'} "
              "(falta la parte clínica de la prueba de intersección-unión).")

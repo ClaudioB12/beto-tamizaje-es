@@ -107,6 +107,8 @@ class Remuestreo:
         self.n_bootstrap = n_bootstrap
         self.n_dobles = int((~self.validas).sum())
         self.fragmento_id = referencia["fragmento_id"].to_numpy()
+        self._semilla = semilla
+        self._indices_semillas: dict[int, np.ndarray] = {}
 
     def distribucion(self, tablas_por_semilla: dict[int, pd.DataFrame]) -> tuple[np.ndarray, list[float]]:
         """Macro-F1 promedio entre semillas en cada réplica, y macro-F1 de cada semilla."""
@@ -121,6 +123,31 @@ class Remuestreo:
             replicas = np.einsum("bs,skc->bkc", self.pesos, c)
             por_replica.append(_macro_desde_conteos(replicas))
         return np.mean(por_replica, axis=0), por_semilla
+
+    def _replicas_por_semilla(self, tablas_por_semilla: dict[int, pd.DataFrame]) -> np.ndarray:
+        """Matriz (semillas × réplicas) de macro-F1 con los pesos de sujeto compartidos."""
+        filas = []
+        for semilla in sorted(tablas_por_semilla):
+            tabla = tablas_por_semilla[semilla]
+            if not np.array_equal(tabla["fragmento_id"].to_numpy(), self.fragmento_id):
+                raise ValueError(f"La semilla {semilla} no describe los mismos fragmentos en el mismo orden.")
+            c = _conteos_por_sujeto(self.real, clase_predicha(tabla)[self.validas], self.sujeto_idx, self.n_sujetos)
+            filas.append(_macro_desde_conteos(np.einsum("bs,skc->bkc", self.pesos, c)))
+        return np.asarray(filas)
+
+    def distribucion_jerarquica(self, tablas_por_semilla: dict[int, pd.DataFrame]) -> np.ndarray:
+        """Bootstrap jerárquico: en cada réplica se remuestrean SEMILLAS (con reemplazo)
+        y, dentro, SUJETOS. Los índices de semilla dependen solo del número de semillas,
+        así que son los mismos para todas las arquitectura: la comparación sigue pareada
+        por posición de semilla y por sujeto."""
+        replicas = self._replicas_por_semilla(tablas_por_semilla)
+        k = replicas.shape[0]
+        if k not in self._indices_semillas:
+            rng = np.random.default_rng([self._semilla, 1, k])
+            self._indices_semillas[k] = rng.integers(0, k, size=(self.n_bootstrap, k))
+        idx = self._indices_semillas[k]
+        elegidas = replicas[idx.T, np.arange(self.n_bootstrap)]   # (k, réplicas)
+        return elegidas.mean(axis=0)
 
 
 def intervalo(distribucion: np.ndarray, alfa: float = 0.05) -> tuple[float, float]:

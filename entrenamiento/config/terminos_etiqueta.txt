@@ -1,0 +1,17 @@
+# Términos que nombran la etiqueta o la comunidad en el texto traducido (fuga léxica).
+# Una expresión regular por línea; se aplican sin distinguir mayúsculas, salvo que la
+# línea lo indique con (?-i:...). Lo usan la partición «reddit_enmascarado» (ablación
+# con reentrenamiento) y ablacion_prueba.py (ablación solo en prueba, sin reentrenar).
+# Cambiar esta lista es un cambio de protocolo: versionarlo y volver a correr la ablación.
+#
+# % de publicaciones de train+val que contienen el término (ans / dep / control), 10 nov 2026:
+\bdepresi\w*          # depresión, depresivo — 15.7 % (9.5 / 33.9 / 3.9)
+\bdeprimid\w*         # deprimido/a — 8.0 % (2.8 / 18.6 / 2.5)
+\bansiedad\w*         # 28.6 % (69.3 / 11.4 / 5.0)
+\bansios\w*           # ansioso/a — 8.3 % (20.0 / 2.7 / 2.3)
+\bp[aá]nico\w*        # 8.5 % (21.7 / 2.1 / 1.7)
+\br/\w+               # nombre de un subreddit — 0.7 %
+\bantidepresiv\w*     # 1.5 % (1.0 / 3.2 / 0.4)
+\bansiol[ií]tic\w*    # 0.0 %
+\b(?:depress\w*|anxi\w*|panic\w*)   # inglés residual sin traducir — 0.3 %
+(?-i:\b(?:GAD|MDD|TAG|TDM)\b)       # siglas diagnósticas, solo en mayúsculas — 1.0 %
